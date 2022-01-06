@@ -1,0 +1,9 @@
+﻿sample,condition,treatment
+CTRL_chx_1,0,1
+CTRL_chx_2,0,1
+CTRL_chx_3,0,1
+CTRL_chx_4,0,1
+DOX_chx_1,1,1
+DOX_chx_2,1,1
+DOX_chx_3,1,1
+DOX_chx_4,1,1
