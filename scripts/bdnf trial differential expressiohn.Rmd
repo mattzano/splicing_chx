@@ -44,6 +44,9 @@ running it to make preeeettttyyyy graph
 ```{r}
 make_volcano_plot(my.dds$results_table)
 ```
+#to add: names of genes on plot
+#splicing volcano
+
 This is the vignette for the PCAtools package
 https://bioconductor.org/packages/release/bioc/vignettes/PCAtools/inst/doc/PCAtools.html
 
