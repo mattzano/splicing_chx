@@ -10,6 +10,7 @@ if (!requireNamespace("BiocManager", quietly = TRUE))
 library(PCAtools)
 library(clusterProfiler)
 library(org.Hs.eg.db)
+library(enrichplot)
 ```
 
 this let's you access the necessary functions, gifted by AL :)
@@ -26,11 +27,13 @@ featureCounts <- create_feature_count_table("/Users/matteozanovello/Documents/ph
 ```
 
 this runs the make_deseq_dfs() function
+#fix according to different conditions
 ```{r}
 my_df <- make_deseq_dfs(featureCounts, grep_pattern = "", base_grep = "CTRL_chx", contrast_grep = "DOX_chx")
 ```
 
 running run_standard_deseq
+#see above
 ```{r}
 my.dds <- run_standard_deseq("/Users/matteozanovello/Documents/phd/research_lines/splicing_chx/data/feature_count", 
                              base_grep = "CTRL_chx",
@@ -41,110 +44,115 @@ my.dds <- run_standard_deseq("/Users/matteozanovello/Documents/phd/research_line
 ```
 
 running it to make preeeettttyyyy graph
+#see above
 ```{r}
 make_volcano_plot(my.dds$results_table)
 ```
 #to add: names of genes on plot
 #splicing volcano
 
+
 This is the vignette for the PCAtools package
 https://bioconductor.org/packages/release/bioc/vignettes/PCAtools/inst/doc/PCAtools.html
 
-We're going to put the "ensgene" into a 'rowname' and then do the PCA analysis.
+We're going to put the "ensgene" into a 'rowname' and then do the PCA analysis using meta data
 Now I'm going to write this using the pipe operator "%>%". Your "hot key" to type that in is: Ctrl + Shift + M
 ```{r}
-bdnf_counts <- featureCounts[,1:9] # so that you exclude the "gene name" column
+bdnf_counts <- featureCounts
 colnames(bdnf_counts) <- c("ensgene", "CTRL_chx_1", "CTRL_chx_2", "CTRL_chx_3", "CTRL_chx_4",
-                           "DOX_chx_1", "DOX_chx_2", "DOX_chx_3", "DOX_chx_4")
+                           "CTRL_ctrl_2", "CTRL_ctrl_3", "CTRL_ctrl_4",
+                           "DOX_chx_1", "DOX_chx_2", "DOX_chx_3", "DOX_chx_4", 
+                           "DOX_ctrl_1", "DOX_ctrl_3", "symbol")
 
-pca <- bdnf_counts %>% 
-    column_to_rownames('ensgene') #%>% t()
-```
+pca_table <- bdnf_counts[,1:14] %>% 
+    column_to_rownames('ensgene')
 
-So let's do a PCA plot using meta data
-```{r}
 path_to_meta_you_downloaded <-  "/Users/matteozanovello/Documents/phd/research_lines/splicing_chx/data/metadata.csv" #update this
 meta_df <- fread(path_to_meta_you_downloaded)
 meta_df <- meta_df %>% 
     column_to_rownames('sample') 
 
-p <- PCAtools::pca(pca, metadata = meta_df, removeVar = 0.1)
-```
-
-As before the screeplot
-```{r}
+p <- PCAtools::pca(pca_table, metadata = meta_df, removeVar = 0.1)
 screeplot(p, axisLabSize = 18, titleLabSize = 22)
 ```
 
 Now we're going to make what is called an "eigencorplot"
 This is going to correlate our metadata variables with our principle components. 
 ```{r}
-#PCAtools::eigencorplot(p, components = getComponents(p),
-#                       metavars = c('condition',"treatment"))
+PCAtools::eigencorplot(p, components = getComponents(p),
+                       metavars = c('condition',"treatment"))
 ```
 
 We can do a biplot with the 2 PC's that are correlating
 ```{r}
 biplot(p,
-       x = "PC1",
-       y = "PC2",
-       colby = 'condition')
+       x = "PC1", #0.99 with treatment
+       y = "PC2", #0.97 with condition
+       colby = c('condition'))
 ```
 
-Let's go ahead and find out what the genes are that are correlated with PC1.
+Let's go ahead and find out what the genes are that are correlated with PC2.
 Let's directly take the loadings of each of the genes (a PCA is a linear combination). 
-
 I'm going to also show you now how to put the symbol back on the table. 
 We shall use the wonder of the `left_join`
 ```{r}
 pc1_gene_loadings = p$loadings %>% 
-    dplyr::select(PC1) %>% 
+    dplyr::select(PC2) %>% 
     rownames_to_column('ensgene') %>% 
-    left_join(annotables::grch38 %>% dplyr::select(ensgene)) %>% 
+    left_join(annotables::grch38 %>% dplyr::select(c(ensgene))) %>% 
 #https://statisticsglobe.com/r-dplyr-join-inner-left-right-full-semi-anti
-    arrange(-PC1)
+    arrange(-PC2)
 ```
 
 Now we've seen a join let's do the same thing with our original count table
-```{r}
-bdnf_counter = bdnf_counts %>% 
-    left_join(annotables::grch38 %>% dplyr::select(ensgene))
-```
-
 I want to look at the expression of the top 15 genes on PC1 so I'm going 
 to plot their expression.
 ```{r}
-bdnf_counter %>% 
-    left_join(pc1_gene_loadings %>% head(15)) %>%
-    filter(!is.na(PC1)) %>%
-    #dplyr::select(-ensgene) %>% 
-    melt(id.vars = c("ensgene","PC1")) %>%
-    mutate(ensgene = fct_reorder(ensgene,-PC1)) %>% 
+bdnf_counts %>% 
+    left_join(annotables::grch38 %>% dplyr::select(c(ensgene,symbol))) %>% 
+    left_join(pc1_gene_loadings %>% head(9)) %>%
+    filter(!is.na(PC2)) %>%
+    dplyr::select(-ensgene) %>% 
+    melt(id.vars = c("symbol","PC2")) %>%
+    mutate(ensgene = fct_reorder(symbol,-PC2)) %>% 
     separate(variable, into = c("condition","treatment")) %>%
-ggplot(aes(x = treatment, y = value, fill = condition)) + 
-    geom_col(position = "dodge2") + facet_wrap(~ensgene)
+    ggplot(aes(x = condition, y = value, fill = treatment)) + 
+    geom_col(position = "dodge2") + facet_wrap(~symbol)
 
 ```
 
 GO analysis
+#see notes above
 ```{r}
 results <- my.dds$results_table
-filtered_res <- filter(results, padj < 0.1 )
-ordered_res <- arrange(filtered_res, desc(abs(log2FoldChange)))
+filtered_res <- filter(results, padj < 0.1 & abs(log2FoldChange) > 2)
+## feature 1: numeric vector
+geneList <- pull(filtered_res,3)
+## feature 2: named vector
+names(geneList) = as.character(pull(filtered_res,8))
+## feature 3: decreasing order
+geneList = sort(geneList, decreasing = TRUE)
 
-gene <- ordered_res$gene_name[abs(ordered_res$log2FoldChange) > 2]
-
-ggo <- groupGO(gene = gene,
+ggo <- groupGO(gene = names(geneList),
                OrgDb = org.Hs.eg.db,
                keyType = "SYMBOL",
-               ont = "CC",
+               ont = "MF",
                level = 3)
+cnetplot(ggo)
+```
 
-ego <- enrichGO(gene = gene,
+```{r}
+ego <- enrichGO(gene = names(geneList),
                 keyType = "SYMBOL",
                 OrgDb = org.Hs.eg.db,
-                ont = "CC",
+                ont = "MF",
                 pAdjustMethod = "BH",
                 pvalueCutoff = 0.01,
                 qvalueCutoff = 0.05)
+goplot(ego)
+```
+
+```{r}
+pgo <- pairwise_termsim(ego)
+emapplot(pgo)
 ```
