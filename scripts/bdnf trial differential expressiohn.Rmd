@@ -121,7 +121,7 @@ bdnf_counts %>%
 
 ```
 
-GO analysis
+GO analysis https://yulab-smu.top/biomedical-knowledge-mining-book/clusterprofiler-go.html
 #see notes above
 ```{r}
 results <- my.dds$results_table
@@ -155,4 +155,15 @@ goplot(ego)
 ```{r}
 pgo <- pairwise_termsim(ego)
 emapplot(pgo)
+```
+
+```{r}
+gse <- gseGO(geneList     = geneList,
+              keyType = "SYMBOL",
+              OrgDb        = org.Hs.eg.db,
+              ont          = "CC",
+              minGSSize    = 50,
+              maxGSSize    = 200,
+              pvalueCutoff = 0.01,
+              verbose      = FALSE)
 ```
