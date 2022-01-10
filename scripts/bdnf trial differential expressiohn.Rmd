@@ -1,5 +1,12 @@
-```{r setup}
-knitr::opts_chunk$set(echo = TRUE)
+---
+title: "CHX dependent analysis"
+author: "Matteo Zanovello"
+date: "2022-01-10"
+output:
+---
+
+```{r setup, include = False}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
 if (!require("pacman")){
     install.packages("pacman")
 } #if pacman is not installed, install it
@@ -13,44 +20,37 @@ library(org.Hs.eg.db)
 library(enrichplot)
 ```
 
-this let's you access the necessary functions, gifted by AL :)
-```{r}
-source(here::here('create_feature_count_table.R'))
-source(here::here('make_deseq_dfs.R'))
-source(here::here('run_standard_deseq.R'))
-source(here::here('make_volcano_plot.R'))
-```
 
-this organizes all the data from the many .bam files and creates one data frame you can work with
 ```{r}
-featureCounts <- create_feature_count_table("/Users/matteozanovello/Documents/phd/research_lines/splicing_chx/data/feature_count")
-```
+source(here::here('scripts','feature_count','create_feature_count_table.R'))
+featureCounts <- create_feature_count_table("/Users/matteozanovello/Documents/phd/research_lines/splicing_chx/data/feature_count") #change here!!
 
-this runs the make_deseq_dfs() function
-#fix according to different conditions
-```{r}
-my_df <- make_deseq_dfs(featureCounts, grep_pattern = "", base_grep = "CTRL_chx", contrast_grep = "DOX_chx")
-```
+source(here::here('scripts','feature_count','make_deseq_dfs.R'))
+my_df <- make_deseq_dfs(featureCounts, grep_pattern = "", base_grep = "NT", contrast_grep = "DOX")
 
-running run_standard_deseq
-#see above
-```{r}
+source(here::here('scripts','feature_count','run_standard_deseq.R'))
 my.dds <- run_standard_deseq("/Users/matteozanovello/Documents/phd/research_lines/splicing_chx/data/feature_count", 
-                             base_grep = "CTRL_chx",
-                             contrast_grep = "DOX_chx",  
+                             base_grep = "CTRL",
+                             contrast_grep = "DOX",  
                              grep_pattern = "",
-                             baseName = "CycloheximideControl",
-                             contrastName = 'CycloheximideTDP43KD')
+                             baseName = "Untreated",
+                             contrastName = 'TDP43KD')
+
+source(here::here('scripts','feature_count','make_volcano_plot.R'))
+label_significant(my.dds$results_table, log2FoldCut = 2, log10padj = 10)
 ```
 
-running it to make preeeettttyyyy graph
-#see above
-```{r}
-make_volcano_plot(my.dds$results_table)
-```
-#to add: names of genes on plot
 #splicing volcano
+```{r}
+source(here::here('scripts','splicing_volcanoplot.R'))
+input_splicing <- fread(file.path(here::here(), "data", "ControlControl-ControlTDP43KD.csv"))
+input_splicing <- separate_rows(input_splicing, c(mean_dpsi_per_lsv_junction, probability_changing, 
+                                                                 probability_non_changing, ControlControl_mean_psi, 
+                                                                 ControlTDP43KD_mean_psi, lsv_type, de_novo_junctions, 
+                                                                 junctions_coords), sep = c(";"), convert = T)
 
+splicing_dots_tables_function(input_splicing)
+```
 
 This is the vignette for the PCAtools package
 https://bioconductor.org/packages/release/bioc/vignettes/PCAtools/inst/doc/PCAtools.html
@@ -102,12 +102,7 @@ pc1_gene_loadings = p$loadings %>%
     left_join(annotables::grch38 %>% dplyr::select(c(ensgene))) %>% 
 #https://statisticsglobe.com/r-dplyr-join-inner-left-right-full-semi-anti
     arrange(-PC2)
-```
 
-Now we've seen a join let's do the same thing with our original count table
-I want to look at the expression of the top 15 genes on PC1 so I'm going 
-to plot their expression.
-```{r}
 bdnf_counts %>% 
     left_join(annotables::grch38 %>% dplyr::select(c(ensgene,symbol))) %>% 
     left_join(pc1_gene_loadings %>% head(9)) %>%
