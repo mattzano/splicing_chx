@@ -2,7 +2,6 @@
 title: "CHX dependent analysis"
 author: "Matteo Zanovello"
 date: "2022-01-10"
-output:
 ---
 
 ```{r setup, include = False}
@@ -18,38 +17,60 @@ library(PCAtools)
 library(clusterProfiler)
 library(org.Hs.eg.db)
 library(enrichplot)
+
+source(here::here('scripts','feature_count','create_feature_count_table.R'))
+source(here::here('scripts','feature_count','make_deseq_dfs.R'))
+source(here::here('scripts','feature_count','run_standard_deseq.R'))
+source(here::here('scripts','feature_count','make_volcano_plot.R'))
+source(here::here('scripts','splicing_volcanoplot.R'))
 ```
 
 
 ```{r}
-source(here::here('scripts','feature_count','create_feature_count_table.R'))
 featureCounts <- create_feature_count_table("/Users/matteozanovello/Documents/phd/research_lines/splicing_chx/data/feature_count") #change here!!
+#my_df <- make_deseq_dfs(featureCounts, grep_pattern = "", base_grep = "CTRL", contrast_grep = "DOX")
 
-source(here::here('scripts','feature_count','make_deseq_dfs.R'))
-my_df <- make_deseq_dfs(featureCounts, grep_pattern = "", base_grep = "NT", contrast_grep = "DOX")
+grepperz <- c("CTRL", "DOX")
+for (k in grepperz) {
+my.dds <- run_standard_deseq("/Users/matteozanovello/Documents/phd/research_lines/splicing_chx/data/feature_count", 
+                             base_grep = "ctrl",
+                             contrast_grep = "chx",  
+                             grep_pattern = k,
+                             baseName = "Untreated",
+                             contrastName = 'Cycloheximide')
 
-source(here::here('scripts','feature_count','run_standard_deseq.R'))
+ppp <- label_significant(my.dds$results_table, log2FoldCut = 2.5, log10padj = 40) + annotate("text", x=8, y=-5, label=k)
+plot(ppp)
+}
+```
+
+```{r}
+grepper <- c("ctrl", "_chx")
+for (j in grepper) {
 my.dds <- run_standard_deseq("/Users/matteozanovello/Documents/phd/research_lines/splicing_chx/data/feature_count", 
                              base_grep = "CTRL",
                              contrast_grep = "DOX",  
-                             grep_pattern = "",
+                             grep_pattern = j,
                              baseName = "Untreated",
                              contrastName = 'TDP43KD')
 
-source(here::here('scripts','feature_count','make_volcano_plot.R'))
-label_significant(my.dds$results_table, log2FoldCut = 2, log10padj = 10)
+bbb <- label_significant(my.dds$results_table, log2FoldCut = 2, log10padj = 15) + annotate("text", x=7, y=-0.5, label=j)
+plot(bbb)
+}
 ```
 
-#splicing volcano
+splicing volcano
 ```{r}
-source(here::here('scripts','splicing_volcanoplot.R'))
-input_splicing <- fread(file.path(here::here(), "data", "ControlControl-ControlTDP43KD.csv"))
-input_splicing <- separate_rows(input_splicing, c(mean_dpsi_per_lsv_junction, probability_changing, 
-                                                                 probability_non_changing, ControlControl_mean_psi, 
-                                                                 ControlTDP43KD_mean_psi, lsv_type, de_novo_junctions, 
-                                                                 junctions_coords), sep = c(";"), convert = T)
+input <- c(#"ControlControl-ControlTDP43KD") #, "ControlControl-CycloheximideControl", "ControlTDP43KD-CycloheximideTDP43KD",
+    "CycloheximideControl-CycloheximideTDP43KD")
+for (i in input) {
+    input_csv <- paste(i, "csv", sep = ".")
+input_splicing <- fread(file.path(here::here(), "data", input_csv))
+input_splicing <- separate_rows(input_splicing, c(names(input_splicing[,c(4:9,12,15)])), sep  = c(";"), convert = T)
 
-splicing_dots_tables_function(input_splicing)
+a <- splicing_dots_tables_function(input_splicing) #+ annotate("text", x=0.7, y=0.1, label=i)
+plot(a)
+}
 ```
 
 This is the vignette for the PCAtools package
@@ -59,18 +80,20 @@ We're going to put the "ensgene" into a 'rowname' and then do the PCA analysis u
 Now I'm going to write this using the pipe operator "%>%". Your "hot key" to type that in is: Ctrl + Shift + M
 ```{r}
 bdnf_counts <- featureCounts
-colnames(bdnf_counts) <- c("ensgene", "CTRL_chx_1", "CTRL_chx_2", "CTRL_chx_3", "CTRL_chx_4",
-                           "CTRL_ctrl_2", "CTRL_ctrl_3", "CTRL_ctrl_4",
+colnames(bdnf_counts) <- c("ensgene", 
+                           "CTRL_chx_1", "CTRL_chx_2", "CTRL_chx_3", "CTRL_chx_4",
+                           "CTRL_ctrl_1", "CTRL_ctrl_2", "CTRL_ctrl_3", "CTRL_ctrl_4",
                            "DOX_chx_1", "DOX_chx_2", "DOX_chx_3", "DOX_chx_4", 
-                           "DOX_ctrl_1", "DOX_ctrl_3", "symbol")
+                           "DOX_ctrl_1", "DOX_ctrl_2", "DOX_ctrl_3", "DOX_ctrl_4", 
+                           "symbol")
 
-pca_table <- bdnf_counts[,1:14] %>% 
+pca_table <- bdnf_counts[,1:17] %>% 
     column_to_rownames('ensgene')
 
 path_to_meta_you_downloaded <-  "/Users/matteozanovello/Documents/phd/research_lines/splicing_chx/data/metadata.csv" #update this
 meta_df <- fread(path_to_meta_you_downloaded)
 meta_df <- meta_df %>% 
-    column_to_rownames('sample') 
+    column_to_rownames('sample')
 
 p <- PCAtools::pca(pca_table, metadata = meta_df, removeVar = 0.1)
 screeplot(p, axisLabSize = 18, titleLabSize = 22)
@@ -88,7 +111,9 @@ We can do a biplot with the 2 PC's that are correlating
 biplot(p,
        x = "PC1", #0.99 with treatment
        y = "PC2", #0.97 with condition
-       colby = c('condition'))
+       colby = c('condition'),
+       axisLabSize = 24,
+       labSize = 6)
 ```
 
 Let's go ahead and find out what the genes are that are correlated with PC2.
@@ -105,7 +130,7 @@ pc1_gene_loadings = p$loadings %>%
 
 bdnf_counts %>% 
     left_join(annotables::grch38 %>% dplyr::select(c(ensgene,symbol))) %>% 
-    left_join(pc1_gene_loadings %>% head(9)) %>%
+    left_join(pc1_gene_loadings %>% head(16)) %>%
     filter(!is.na(PC2)) %>%
     dplyr::select(-ensgene) %>% 
     melt(id.vars = c("symbol","PC2")) %>%
@@ -131,7 +156,7 @@ geneList = sort(geneList, decreasing = TRUE)
 ggo <- groupGO(gene = names(geneList),
                OrgDb = org.Hs.eg.db,
                keyType = "SYMBOL",
-               ont = "MF",
+               ont = "BP",
                level = 3)
 cnetplot(ggo)
 ```
@@ -140,11 +165,13 @@ cnetplot(ggo)
 ego <- enrichGO(gene = names(geneList),
                 keyType = "SYMBOL",
                 OrgDb = org.Hs.eg.db,
-                ont = "MF",
+                ont = "BP",
                 pAdjustMethod = "BH",
-                pvalueCutoff = 0.01,
-                qvalueCutoff = 0.05)
+                pvalueCutoff = 1,
+                qvalueCutoff = 1)
 goplot(ego)
+dotplot(ego, showCategory=30)
+cnetplot(ego, foldChange=geneList)
 ```
 
 ```{r}
@@ -161,4 +188,5 @@ gse <- gseGO(geneList     = geneList,
               maxGSSize    = 200,
               pvalueCutoff = 0.01,
               verbose      = FALSE)
+gseaplot(gse, geneSetID="GO:0043231")
 ```

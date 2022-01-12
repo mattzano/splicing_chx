@@ -6,7 +6,7 @@ splicing_dots_tables_function <- function(input_splicing) {
                                      probability_changing > 0.9  &
                                      mean_dpsi_per_lsv_junction > 0 ~ gene_name,
                                    T ~ "")) %>%
-  mutate(`Novel Junction` = de_novo_junctions == 0) %>%
+  mutate(`Novel Junction` = de_novo_junctions == 1) %>%
   mutate(log10_test_stat = -log10(1 - probability_changing)) %>%
   mutate(log10_test_stat = ifelse(is.infinite(log10_test_stat), 4.5, log10_test_stat)) %>%
   mutate(graph_alpha = ifelse(probability_changing > 0.9, 1, 0.2)) %>%
@@ -18,10 +18,10 @@ splicing_dots_tables_function <- function(input_splicing) {
                                     T ~ ""))
 
 fig1 <- ggplot() +
-  geom_point(data = splicing_dots_tables %>% filter(de_novo_junctions != 0),
+  geom_point(data = splicing_dots_tables %>% filter(de_novo_junctions == 0),
              aes(x = mean_dpsi_per_lsv_junction, y = log10_test_stat,
                  alpha = graph_alpha, fill = "Annotated Junction"), pch = 21, size = 2) +
-  geom_point(data = splicing_dots_tables %>% filter(de_novo_junctions == 0),
+  geom_point(data = splicing_dots_tables %>% filter(de_novo_junctions != 0),
              aes(x = mean_dpsi_per_lsv_junction, y = log10_test_stat,
                  alpha = graph_alpha, fill = "Novel Junction"), pch = 21, size = 2) +
   geom_text_repel(data = splicing_dots_tables[19 != ""],
@@ -40,7 +40,7 @@ fig1 <- ggplot() +
                     values = c("Annotated Junction" = "#648FFF", "Novel Junction" = "#fe6101") ) +
   scale_color_manual(name = "",
                      breaks = c("0", "1"),
-                     values = c("1" = "#648FFF", "0" = "#fe6101") ) +
+                     values = c("0" = "#648FFF", "1" = "#fe6101") ) +
   guides(alpha = "none", size = "none") +
   theme(legend.position = 'top') +
   ggpubr::theme_pubr() +
