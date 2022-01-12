@@ -6,17 +6,18 @@ date: "2022-01-10"
 
 ```{r setup, include = False}
 knitr::opts_chunk$set(warning = FALSE, message = FALSE)
-if (!require("pacman")){
-    install.packages("pacman")
-} #if pacman is not installed, install it
+#if (!require("pacman")){
+#    install.packages("pacman")
+#} #if pacman is not installed, install it
 pacman::p_load(tidyverse, data.table, ggplot2, janitor, ggpubr, ggrepel,
                devtools, readxl, DESeq2, readr, edgeR, annotables)
-if (!requireNamespace("BiocManager", quietly = TRUE))
-    install.packages("BiocManager")
+#if (!requireNamespace("BiocManager", quietly = TRUE))
+#    install.packages("BiocManager")
 library(PCAtools)
 library(clusterProfiler)
 library(org.Hs.eg.db)
 library(enrichplot)
+library("pcaExplorer")
 
 source(here::here('scripts','feature_count','create_feature_count_table.R'))
 source(here::here('scripts','feature_count','make_deseq_dfs.R'))
@@ -45,7 +46,7 @@ plot(ppp)
 ```
 
 ```{r}
-grepper <- c("ctrl", "_chx")
+grepper <- c("ctrl") #, "_chx")
 for (j in grepper) {
 my.dds <- run_standard_deseq("/Users/matteozanovello/Documents/phd/research_lines/splicing_chx/data/feature_count", 
                              base_grep = "CTRL",
@@ -61,14 +62,17 @@ plot(bbb)
 
 splicing volcano
 ```{r}
-input <- c(#"ControlControl-ControlTDP43KD") #, "ControlControl-CycloheximideControl", "ControlTDP43KD-CycloheximideTDP43KD",
-    "CycloheximideControl-CycloheximideTDP43KD")
+input <- c("ControlControl-ControlTDP43KD", 
+           "ControlControl-CycloheximideControl", 
+           "ControlTDP43KD-CycloheximideTDP43KD",
+           "CycloheximideControl-CycloheximideTDP43KD")
+
 for (i in input) {
     input_csv <- paste(i, "csv", sep = ".")
 input_splicing <- fread(file.path(here::here(), "data", input_csv))
 input_splicing <- separate_rows(input_splicing, c(names(input_splicing[,c(4:9,12,15)])), sep  = c(";"), convert = T)
 
-a <- splicing_dots_tables_function(input_splicing) #+ annotate("text", x=0.7, y=0.1, label=i)
+a <- splicing_dots_tables_function(input_splicing) + annotate("text", x=0.7, y=0.1, label=i)
 plot(a)
 }
 ```
@@ -85,15 +89,36 @@ colnames(bdnf_counts) <- c("ensgene",
                            "CTRL_ctrl_1", "CTRL_ctrl_2", "CTRL_ctrl_3", "CTRL_ctrl_4",
                            "DOX_chx_1", "DOX_chx_2", "DOX_chx_3", "DOX_chx_4", 
                            "DOX_ctrl_1", "DOX_ctrl_2", "DOX_ctrl_3", "DOX_ctrl_4", 
-                           "symbol")
+                           "gene_name")
 
-pca_table <- bdnf_counts[,1:17] %>% 
+pca_table <- bdnf_counts[,1:17] %>%
     column_to_rownames('ensgene')
-
+    
 path_to_meta_you_downloaded <-  "/Users/matteozanovello/Documents/phd/research_lines/splicing_chx/data/metadata.csv" #update this
 meta_df <- fread(path_to_meta_you_downloaded)
 meta_df <- meta_df %>% 
     column_to_rownames('sample')
+
+annotation <- bdnf_counts[,c(1,18)] %>%
+    column_to_rownames('ensgene')
+
+pcaExplorer(countmatrix = pca_table, coldata = meta_df, annotation = annotation)
+
+#cols = c(1:16)    
+#pca_table[,cols] = apply(pca_table[,cols], 2, function(x) as.numeric(as.character(x)))
+
+se <- DESeqDataSetFromMatrix(countData = pca_table,
+                              colData = meta_df,
+                              design = ~ condition + treatment)
+se <- DESeqTransform(se)
+
+go <- pcaExplorer::pca2go(
+    se,
+  annotation = annotation,
+  inputType = "geneSymbol",
+  organism = "Hs",
+  ensToGeneSymbol = TRUE
+)
 
 p <- PCAtools::pca(pca_table, metadata = meta_df, removeVar = 0.1)
 screeplot(p, axisLabSize = 18, titleLabSize = 22)
