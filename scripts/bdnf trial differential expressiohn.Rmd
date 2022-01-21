@@ -6,18 +6,14 @@ date: "2022-01-10"
 
 ```{r setup, include = False}
 knitr::opts_chunk$set(warning = FALSE, message = FALSE)
-#if (!require("pacman")){
-#    install.packages("pacman")
-#} #if pacman is not installed, install it
+if (!require("pacman"))
+    install.packages("pacman")
+if (!requireNamespace("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
 pacman::p_load(tidyverse, data.table, ggplot2, janitor, ggpubr, ggrepel,
-               devtools, readxl, DESeq2, readr, edgeR, annotables)
-#if (!requireNamespace("BiocManager", quietly = TRUE))
-#    install.packages("BiocManager")
-library(PCAtools)
-library(clusterProfiler)
-library(org.Hs.eg.db)
-library(enrichplot)
-library("pcaExplorer")
+               devtools, readxl, DESeq2, readr, edgeR, annotables,
+               PCAtools, clusterProfiler, "org.Hs.eg.db", enrichplot, pcaExplorer, topGO)
+
 
 source(here::here('scripts','feature_count','create_feature_count_table.R'))
 source(here::here('scripts','feature_count','make_deseq_dfs.R'))
@@ -25,7 +21,6 @@ source(here::here('scripts','feature_count','run_standard_deseq.R'))
 source(here::here('scripts','feature_count','make_volcano_plot.R'))
 source(here::here('scripts','splicing_volcanoplot.R'))
 ```
-
 
 ```{r}
 featureCounts <- create_feature_count_table("/Users/matteozanovello/Documents/phd/research_lines/splicing_chx/data/feature_count") #change here!!
@@ -43,10 +38,8 @@ my.dds <- run_standard_deseq("/Users/matteozanovello/Documents/phd/research_line
 ppp <- label_significant(my.dds$results_table, log2FoldCut = 2.5, log10padj = 40) + annotate("text", x=8, y=-5, label=k)
 plot(ppp)
 }
-```
 
-```{r}
-grepper <- c("ctrl") #, "_chx")
+grepper <- c("ctrl", "_chx")
 for (j in grepper) {
 my.dds <- run_standard_deseq("/Users/matteozanovello/Documents/phd/research_lines/splicing_chx/data/feature_count", 
                              base_grep = "CTRL",
@@ -61,6 +54,7 @@ plot(bbb)
 ```
 
 splicing volcano
+
 ```{r}
 input <- c("ControlControl-ControlTDP43KD", 
            "ControlControl-CycloheximideControl", 
@@ -69,40 +63,41 @@ input <- c("ControlControl-ControlTDP43KD",
 
 for (i in input) {
     input_csv <- paste(i, "csv", sep = ".")
-input_splicing <- fread(file.path(here::here(), "data", input_csv))
-input_splicing <- separate_rows(input_splicing, c(names(input_splicing[,c(4:9,12,15)])), sep  = c(";"), convert = T)
+    input_splicing <- fread(file.path(here::here(), "data", input_csv))
+    input_splicing <- separate_rows(input_splicing, c(names(input_splicing[,c(4:9,12,15)])), sep  = c(";"), convert = T)
 
-a <- splicing_dots_tables_function(input_splicing) + annotate("text", x=0.7, y=0.1, label=i)
-plot(a)
+    a <- splicing_dots_tables_function(input_splicing) + annotate("text", x=0.7, y=0.1, label=i)
+  plot(a)
 }
 ```
 
 This is the vignette for the PCAtools package
-https://bioconductor.org/packages/release/bioc/vignettes/PCAtools/inst/doc/PCAtools.html
+<https://bioconductor.org/packages/release/bioc/vignettes/PCAtools/inst/doc/PCAtools.html>
 
-We're going to put the "ensgene" into a 'rowname' and then do the PCA analysis using meta data
-Now I'm going to write this using the pipe operator "%>%". Your "hot key" to type that in is: Ctrl + Shift + M
+We're going to put the "ensgene" into a 'rowname' and then do the PCA
+analysis using meta data Now I'm going to write this using the pipe
+operator "%\>%". Your "hot key" to type that in is: Ctrl + Shift + M
+
 ```{r}
-bdnf_counts <- featureCounts
-colnames(bdnf_counts) <- c("ensgene", 
+colnames(featureCounts) <- c("ensgene", 
                            "CTRL_chx_1", "CTRL_chx_2", "CTRL_chx_3", "CTRL_chx_4",
                            "CTRL_ctrl_1", "CTRL_ctrl_2", "CTRL_ctrl_3", "CTRL_ctrl_4",
                            "DOX_chx_1", "DOX_chx_2", "DOX_chx_3", "DOX_chx_4", 
                            "DOX_ctrl_1", "DOX_ctrl_2", "DOX_ctrl_3", "DOX_ctrl_4", 
                            "gene_name")
 
-pca_table <- bdnf_counts[,1:17] %>%
+pca_table <- featureCounts[,1:17] %>%
     column_to_rownames('ensgene')
     
 path_to_meta_you_downloaded <-  "/Users/matteozanovello/Documents/phd/research_lines/splicing_chx/data/metadata.csv" #update this
 meta_df <- fread(path_to_meta_you_downloaded)
-meta_df <- meta_df %>% 
-    column_to_rownames('sample')
+meta_df <- meta_df %>%
+    column_to_rownames('sample') 
+meta_df[,1] <- as.factor(meta_df[,1])
+meta_df[,2] <- as.factor(meta_df[,2])
 
-annotation <- bdnf_counts[,c(1,18)] %>%
+annotation <- featureCounts[,c(1,18)] %>%
     column_to_rownames('ensgene')
-
-pcaExplorer(countmatrix = pca_table, coldata = meta_df, annotation = annotation)
 
 #cols = c(1:16)    
 #pca_table[,cols] = apply(pca_table[,cols], 2, function(x) as.numeric(as.character(x)))
@@ -120,18 +115,22 @@ go <- pcaExplorer::pca2go(
   ensToGeneSymbol = TRUE
 )
 
-p <- PCAtools::pca(pca_table, metadata = meta_df, removeVar = 0.1)
-screeplot(p, axisLabSize = 18, titleLabSize = 22)
+pcaExplorer(countmatrix = pca_table, coldata = meta_df, annotation = annotation, pca2go = go)
+
+#p <- PCAtools::pca(pca_table, metadata = meta_df, removeVar = 0.1)
+#screeplot(p, axisLabSize = 18, titleLabSize = 22)
 ```
 
-Now we're going to make what is called an "eigencorplot"
-This is going to correlate our metadata variables with our principle components. 
+Now we're going to make what is called an "eigencorplot" This is going
+to correlate our metadata variables with our principle components.
+
 ```{r}
 PCAtools::eigencorplot(p, components = getComponents(p),
                        metavars = c('condition',"treatment"))
 ```
 
 We can do a biplot with the 2 PC's that are correlating
+
 ```{r}
 biplot(p,
        x = "PC1", #0.99 with treatment
@@ -141,10 +140,11 @@ biplot(p,
        labSize = 6)
 ```
 
-Let's go ahead and find out what the genes are that are correlated with PC2.
-Let's directly take the loadings of each of the genes (a PCA is a linear combination). 
-I'm going to also show you now how to put the symbol back on the table. 
-We shall use the wonder of the `left_join`
+Let's go ahead and find out what the genes are that are correlated with
+PC2. Let's directly take the loadings of each of the genes (a PCA is a
+linear combination). I'm going to also show you now how to put the
+symbol back on the table. We shall use the wonder of the `left_join`
+
 ```{r}
 pc1_gene_loadings = p$loadings %>% 
     dplyr::select(PC2) %>% 
@@ -166,8 +166,10 @@ bdnf_counts %>%
 
 ```
 
-GO analysis https://yulab-smu.top/biomedical-knowledge-mining-book/clusterprofiler-go.html
-#see notes above
+GO analysis
+<https://yulab-smu.top/biomedical-knowledge-mining-book/clusterprofiler-go.html>
+\#see notes above
+
 ```{r}
 results <- my.dds$results_table
 filtered_res <- filter(results, padj < 0.1 & abs(log2FoldChange) > 2)

@@ -1,9 +1,10 @@
 splicing_dots_tables_function <- function(input_splicing) {
-  list_gene <- c("ARHGAP32", "ITGA7", "CEP290", "PRELID3A", "DLGAP1", "UNC13A", "CELF5", "HDGFL2", "ATG4B", "KCNQ2",
-                 "KALRN", "CAMK2B", "ADCY1", "STMN2", "PHF2", "IGSF21", "TFAP2E", "ADARB2", "PFKP", "SYT7", "RSF1", 
-                 "G2E3", "KIAA0753", "CBARP", "INSR", "PXDN", "TRAPPC12", "SETD5", "TMEM175", "EPB41L4A", "MTRR", 
-                 "ACTL6B", "WASL", "IQCE", "TRRAP", "SEMA4D", "C1orf194", "ELAVL3", "ONECUT1", "KNDC1", "RBFOX3",
-                 "TLX1", "MAST1", "ZNF65", "PDE9A", "DAPK1", "COPS9", "AARS", "PSD", "PREX2")
+  list_gene <- c("UNC13A", "INSR", "UNC13B", "STMN2")
+                 #"ARHGAP32", "ITGA7", "CEP290", "PRELID3A", "DLGAP1", "UNC13A", "CELF5", "HDGFL2", "ATG4B", "KCNQ2",
+                 #"KALRN", "CAMK2B", "ADCY1", "STMN2", "PHF2", "IGSF21", "TFAP2E", "ADARB2", "PFKP", "SYT7", "RSF1", 
+                 #"G2E3", "KIAA0753", "CBARP", "INSR", "PXDN", "TRAPPC12", "SETD5", "TMEM175", "EPB41L4A", "MTRR"), 
+                 #"ACTL6B", "WASL", "IQCE", "TRRAP", "SEMA4D", "C1orf194", "ELAVL3", "ONECUT1", "KNDC1", "RBFOX3",
+                 #"TLX1", "MAST1", "ZNF65", "PDE9A", "DAPK1", "COPS9", "AARS", "PSD", "PREX2")
   splicing_dots_tables <- input_splicing %>% 
   mutate(junction_name = case_when(gene_name %in% list_gene &
                                      probability_changing > 0.9  &
@@ -33,7 +34,7 @@ fig1 <- ggplot() +
                   min.segment.length = 0,
                   box.padding  = 2,
                   max.overlaps = Inf,
-                  size=2, show.legend = F) +
+                  size=4, show.legend = F) +
   geom_hline(yintercept = -log10(1 - .9)) +
   geom_vline(xintercept = -0,linetype="dotted") +
   scale_fill_manual(name = "",
