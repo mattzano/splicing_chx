@@ -14,21 +14,20 @@ pacman::p_load(tidyverse, data.table, ggplot2, janitor, ggpubr, ggrepel,
                devtools, readxl, DESeq2, readr, edgeR, annotables,
                PCAtools, clusterProfiler, "org.Hs.eg.db", enrichplot, pcaExplorer, topGO)
 
-
-source(here::here('scripts','feature_count','create_feature_count_table.R'))
-source(here::here('scripts','feature_count','make_deseq_dfs.R'))
-source(here::here('scripts','feature_count','run_standard_deseq.R'))
-source(here::here('scripts','feature_count','make_volcano_plot.R'))
+source(here::here('scripts','create_feature_count_table.R'))
+source(here::here('scripts','make_deseq_dfs.R'))
+source(here::here('scripts','run_standard_deseq.R'))
+source(here::here('scripts','make_volcano_plot.R'))
 source(here::here('scripts','splicing_volcanoplot.R'))
 ```
 
 ```{r}
-featureCounts <- create_feature_count_table("/Users/matteozanovello/Documents/phd/research_lines/splicing_chx/data/feature_count") #change here!!
+featureCounts <- create_feature_count_table("data/feature_count") #change here!!
 #my_df <- make_deseq_dfs(featureCounts, grep_pattern = "", base_grep = "CTRL", contrast_grep = "DOX")
 
 grepperz <- c("CTRL", "DOX")
 for (k in grepperz) {
-my.dds <- run_standard_deseq("/Users/matteozanovello/Documents/phd/research_lines/splicing_chx/data/feature_count", 
+my.dds <- run_standard_deseq("data/feature_count", 
                              base_grep = "ctrl",
                              contrast_grep = "chx",  
                              grep_pattern = k,
@@ -41,7 +40,7 @@ plot(ppp)
 
 grepper <- c("ctrl", "_chx")
 for (j in grepper) {
-my.dds <- run_standard_deseq("/Users/matteozanovello/Documents/phd/research_lines/splicing_chx/data/feature_count", 
+my.dds <- run_standard_deseq("data/feature_count", 
                              base_grep = "CTRL",
                              contrast_grep = "DOX",  
                              grep_pattern = j,
@@ -71,13 +70,7 @@ for (i in input) {
 }
 ```
 
-This is the vignette for the PCAtools package
-<https://bioconductor.org/packages/release/bioc/vignettes/PCAtools/inst/doc/PCAtools.html>
-
-We're going to put the "ensgene" into a 'rowname' and then do the PCA
-analysis using meta data Now I'm going to write this using the pipe
-operator "%\>%". Your "hot key" to type that in is: Ctrl + Shift + M
-
+This is the vignette for the PCAtools package <https://bioconductor.org/packages/release/bioc/vignettes/PCAtools/inst/doc/PCAtools.html>
 ```{r}
 colnames(featureCounts) <- c("ensgene", 
                            "CTRL_chx_1", "CTRL_chx_2", "CTRL_chx_3", "CTRL_chx_4",
@@ -89,7 +82,7 @@ colnames(featureCounts) <- c("ensgene",
 pca_table <- featureCounts[,1:17] %>%
     column_to_rownames('ensgene')
     
-path_to_meta_you_downloaded <-  "/Users/matteozanovello/Documents/phd/research_lines/splicing_chx/data/metadata.csv" #update this
+path_to_meta_you_downloaded <-  "data/metadata.csv" #update this
 meta_df <- fread(path_to_meta_you_downloaded)
 meta_df <- meta_df %>%
     column_to_rownames('sample') 
@@ -121,55 +114,8 @@ pcaExplorer(countmatrix = pca_table, coldata = meta_df, annotation = annotation,
 #screeplot(p, axisLabSize = 18, titleLabSize = 22)
 ```
 
-Now we're going to make what is called an "eigencorplot" This is going
-to correlate our metadata variables with our principle components.
-
-```{r}
-PCAtools::eigencorplot(p, components = getComponents(p),
-                       metavars = c('condition',"treatment"))
-```
-
-We can do a biplot with the 2 PC's that are correlating
-
-```{r}
-biplot(p,
-       x = "PC1", #0.99 with treatment
-       y = "PC2", #0.97 with condition
-       colby = c('condition'),
-       axisLabSize = 24,
-       labSize = 6)
-```
-
-Let's go ahead and find out what the genes are that are correlated with
-PC2. Let's directly take the loadings of each of the genes (a PCA is a
-linear combination). I'm going to also show you now how to put the
-symbol back on the table. We shall use the wonder of the `left_join`
-
-```{r}
-pc1_gene_loadings = p$loadings %>% 
-    dplyr::select(PC2) %>% 
-    rownames_to_column('ensgene') %>% 
-    left_join(annotables::grch38 %>% dplyr::select(c(ensgene))) %>% 
-#https://statisticsglobe.com/r-dplyr-join-inner-left-right-full-semi-anti
-    arrange(-PC2)
-
-bdnf_counts %>% 
-    left_join(annotables::grch38 %>% dplyr::select(c(ensgene,symbol))) %>% 
-    left_join(pc1_gene_loadings %>% head(16)) %>%
-    filter(!is.na(PC2)) %>%
-    dplyr::select(-ensgene) %>% 
-    melt(id.vars = c("symbol","PC2")) %>%
-    mutate(ensgene = fct_reorder(symbol,-PC2)) %>% 
-    separate(variable, into = c("condition","treatment")) %>%
-    ggplot(aes(x = condition, y = value, fill = treatment)) + 
-    geom_col(position = "dodge2") + facet_wrap(~symbol)
-
-```
-
 GO analysis
 <https://yulab-smu.top/biomedical-knowledge-mining-book/clusterprofiler-go.html>
-\#see notes above
-
 ```{r}
 results <- my.dds$results_table
 filtered_res <- filter(results, padj < 0.1 & abs(log2FoldChange) > 2)
@@ -186,9 +132,7 @@ ggo <- groupGO(gene = names(geneList),
                ont = "BP",
                level = 3)
 cnetplot(ggo)
-```
 
-```{r}
 ego <- enrichGO(gene = names(geneList),
                 keyType = "SYMBOL",
                 OrgDb = org.Hs.eg.db,
@@ -199,14 +143,10 @@ ego <- enrichGO(gene = names(geneList),
 goplot(ego)
 dotplot(ego, showCategory=30)
 cnetplot(ego, foldChange=geneList)
-```
 
-```{r}
 pgo <- pairwise_termsim(ego)
 emapplot(pgo)
-```
 
-```{r}
 gse <- gseGO(geneList     = geneList,
               keyType = "SYMBOL",
               OrgDb        = org.Hs.eg.db,

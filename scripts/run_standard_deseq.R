@@ -10,8 +10,8 @@ run_standard_deseq = function(folder_of_featurecounts,
     library(data.table)
     library(tidyverse)
     # First we are going to load in the functions that I've written as helper scripts
-    create_feature_path = "/Users/matteozanovello/Documents/phd/research_lines/splicing_chx/scripts/feature_count/create_feature_count_table.R"
-    make_deseq_path = "/Users/matteozanovello/Documents/phd/research_lines/splicing_chx/scripts/feature_count/make_deseq_dfs.R"
+    create_feature_path = "scripts/create_feature_count_table.R"
+    make_deseq_path = "scripts/make_deseq_dfs.R"
     #you'll want to adjust the file paths accordingly
     #source will bring the functions in these Rscripts into the current environment
     source(create_feature_path)
