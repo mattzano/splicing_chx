@@ -19,6 +19,7 @@ source(here::here('scripts','make_deseq_dfs.R'))
 source(here::here('scripts','run_standard_deseq.R'))
 source(here::here('scripts','make_volcano_plot.R'))
 source(here::here('scripts','splicing_volcanoplot.R'))
+source(here::here('scripts','run_de_irfinder.R'))
 ```
 
 ```{r}
@@ -68,6 +69,24 @@ for (i in input) {
     a <- splicing_dots_tables_function(input_splicing) + annotate("text", x=0.7, y=0.1, label=i)
   plot(a)
 }
+```
+
+```{r}
+ir_top_level = "data/irfinder/"
+experiment = make_deframe_irfinder(ir_top_level,base_grep = "CTRL",
+                                   contrast_grep = "DOX")$metadata
+paths = make_deframe_irfinder(ir_top_level,base_grep = "CTRL",
+                                   contrast_grep = "DOX")$path
+
+#for (j in c("0.0125", "0.0187", "0.021", "0.025", "0.075")) {
+    experiment <- filter(experiment, grepl("ctrl", SampleNames))
+    paths <- paths[grepl("ctrl", paths)]
+#}
+
+dds = run_deseq_ir(paths,experiment = experiment)
+result = return_formated_results(dds)
+resultCTRL <- result %>% 
+    mutate(ir_change = TDPKD -  control)
 ```
 
 This is the vignette for the PCAtools package <https://bioconductor.org/packages/release/bioc/vignettes/PCAtools/inst/doc/PCAtools.html>
