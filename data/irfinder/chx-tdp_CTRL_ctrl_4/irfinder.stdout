@@ -1,0 +1,33 @@
+IRFinder version: 1.3.0
+IRFinder start:  Thu Feb 3 20:42:43 GMT 2022
+IRFinder runmode: BAM
+IRFinder user@host: mzanovel @ burns-609-87.local
+IRFinder working dir:  /SAN/vyplab/first_weeks/TDP_CHX_CLONES_GLIA/rna_seq_snakemake
+IRFinder reference: /SAN/vyplab/alb_projects/tools/IRFinder/REF/human_gencode_v34/irfinder/
+IRFinder file 1: /SAN/vyplab/first_weeks/TDP_CHX_CLONES_GLIA/IRFinder/chx-tdp_CTRL_ctrl_4_namesorted.bam
+IRFinder file 2: 
+---
+IRFinder run with options:
+Output Dir	/SAN/vyplab/first_weeks/TDP_CHX_CLONES_GLIA/IRFinder/chx-tdp_CTRL_ctrl_4
+Main intron reference:	/SAN/vyplab/alb_projects/tools/IRFinder/REF/human_gencode_v34/irfinder//IRFinder/ref-cover.bed
+Read spans reference:	/SAN/vyplab/alb_projects/tools/IRFinder/REF/human_gencode_v34/irfinder//IRFinder/ref-read-continues.ref
+Optional ROI reference:	/SAN/vyplab/alb_projects/tools/IRFinder/REF/human_gencode_v34/irfinder//IRFinder/ref-ROI.bed
+Optional BAM output:	NULL
+Total reads processed: 126987573
+Total nucleotides: 6698540978
+Total singles processed: 0
+Total pairs processed: 47413797
+Short pairs: 9625764
+Intersect pairs: 29036715
+Long pairs: 8751318
+Skipped reads: 32159582
+Error reads: 397
+Directionality: Dir evidence:	131915
+Directionality: Nondir evidence:	350
+Directionality: Dir evidence known junctions:	124198
+Directionality: Nondir evidence known junctions:	246
+Directionality: Dir matches ref:	124197
+Directionality: Dir opposed to ref:	1
+Directionality: Dir score all (0-10000):	9973
+Directionality: Dir score known junctions (0-10000):	9980
+RNA-Seq directionality -1/0/+1:	1
