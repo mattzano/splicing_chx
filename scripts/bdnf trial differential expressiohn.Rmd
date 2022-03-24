@@ -6,25 +6,42 @@ date: "2022-01-10"
 
 ```{r setup, include = False}
 knitr::opts_chunk$set(warning = FALSE, message = FALSE)
-if (!require("pacman"))
-    install.packages("pacman")
-if (!requireNamespace("BiocManager", quietly = TRUE))
-    install.packages("BiocManager")
-pacman::p_load(tidyverse, data.table, ggplot2, janitor, ggpubr, ggrepel,
-               devtools, readxl, DESeq2, readr, edgeR, annotables,
-               PCAtools, clusterProfiler, "org.Hs.eg.db", enrichplot, pcaExplorer, topGO)
+if (!require("pacman")) install.packages("pacman")
+if (!requireNamespace("BiocManager", quietly = TRUE)) install.packages("BiocManager")
+pacman::p_load(tidyverse, data.table, janitor, ggpubr, ggrepel, magrittr, devtools, readxl, 
+               DESeq2, edgeR, annotables, PCAtools, clusterProfiler, "org.Hs.eg.db", enrichplot, 
+               pcaExplorer, topGO, ggtranscript, "TxDb.Hsapiens.UCSC.hg38.knownGene", GenomicRanges,
+               rtracklayer, ensembldb, biomaRt)
 
 source(here::here('scripts','create_feature_count_table.R'))
-source(here::here('scripts','make_deseq_dfs.R'))
 source(here::here('scripts','run_standard_deseq.R'))
 source(here::here('scripts','make_volcano_plot.R'))
 source(here::here('scripts','splicing_volcanoplot.R'))
+source(here::here('scripts','trial_nmd_plots.R'))
+source(here::here('scripts','ggtranscript.R'))
 source(here::here('scripts','run_de_irfinder.R'))
 ```
 
 ```{r}
 featureCounts <- create_feature_count_table("data/feature_count") #change here!!
 #my_df <- make_deseq_dfs(featureCounts, grep_pattern = "", base_grep = "CTRL", contrast_grep = "DOX")
+
+colnames(featureCounts) <- c("ensgene", 
+                           "CTRL_chx_1", "CTRL_chx_2", "CTRL_chx_3", "CTRL_chx_4",
+                           "CTRL_ctrl_1", "CTRL_ctrl_2", "CTRL_ctrl_3", "CTRL_ctrl_4",
+                           "DOX_chx_1", "DOX_chx_2", "DOX_chx_3", "DOX_chx_4", 
+                           "DOX_ctrl_1", "DOX_ctrl_2", "DOX_ctrl_3", "DOX_ctrl_4", 
+                           "gene_name")
+
+pca_table <- featureCounts[,1:17] %>%
+    column_to_rownames('ensgene')
+annotation <- featureCounts[,c(1,18)] %>%
+    column_to_rownames('ensgene')
+meta_df <- fread("data/metadata.csv")
+meta_df <- meta_df %>% column_to_rownames('sample') 
+meta_df[,1] <- as.factor(meta_df[,1])
+meta_df[,2] <- as.factor(meta_df[,2])
+#pcaExplorer(countmatrix = pca_table, coldata = meta_df, annotation = annotation)
 
 grepperz <- c("CTRL", "DOX")
 for (k in grepperz) {
@@ -34,8 +51,7 @@ my.dds <- run_standard_deseq("data/feature_count",
                              grep_pattern = k,
                              baseName = "Untreated",
                              contrastName = 'Cycloheximide')
-
-ppp <- label_significant(my.dds$results_table, log2FoldCut = 2.5, log10padj = 40) + annotate("text", x=8, y=-5, label=k)
+ppp <- label_significant(my.dds$results_table, log2FoldCut = 2, log10padj = 15) + annotate("text", x=8, y=-5, label=k)
 plot(ppp)
 }
 
@@ -47,14 +63,12 @@ my.dds <- run_standard_deseq("data/feature_count",
                              grep_pattern = j,
                              baseName = "Untreated",
                              contrastName = 'TDP43KD')
-
 bbb <- label_significant(my.dds$results_table, log2FoldCut = 2, log10padj = 15) + annotate("text", x=7, y=-0.5, label=j)
 plot(bbb)
 }
 ```
 
-splicing volcano
-
+splicing volcano + slope plot
 ```{r}
 input <- c("ControlControl-ControlTDP43KD", 
            "ControlControl-CycloheximideControl", 
@@ -65,12 +79,74 @@ for (i in input) {
     input_csv <- paste(i, "csv", sep = ".")
     input_splicing <- fread(file.path(here::here(), "data", input_csv))
     input_splicing <- separate_rows(input_splicing, c(names(input_splicing[,c(4:9,12,15)])), sep  = c(";"), convert = T)
-
     a <- splicing_dots_tables_function(input_splicing) + annotate("text", x=0.7, y=0.1, label=i)
   plot(a)
 }
+
+datalista <- list()
+
+for (i in input) {
+  contrast <- paste(i, "annotated", "junctions", sep = "_")
+  input_bc <- paste(contrast, sep = "-")
+  input_bc_csv <- paste(input_bc, "csv", sep = ".")
+  input_bc_splicing <- fread(file.path(here::here(), "data", "majiq_delta", input_bc_csv))
+  names(input_bc_splicing)[12] <- "base_mean_psi"
+  names(input_bc_splicing)[13] <- "contrast_mean_psi"
+  datalista[[i]] <- input_bc_splicing
+}
+
+big_delta <- rbindlist(datalista, idcol = TRUE)
+big_delta$.id <- factor(big_delta$.id, levels = input)
+
+input_list <- c("Control_Control",
+                "Cycloheximide_Control", 
+                "Control_TDP43KD", 
+                "Cycloheximide_TDP43KD")
+datalist <- list()
+
+for (i in input_list) {
+  input <- paste(i, "parsed", sep = "_")
+  input_csv <- paste(input, "csv", sep = ".")
+  input_splicing <- fread(file.path(here::here(), "data", "majiq_single", input_csv))
+  datalist[[i]] <- input_splicing
+}
+
+big_data <- rbindlist(datalist, idcol = TRUE)
+big_data$.id <- factor(big_data$.id, levels = input_list)
+
+gene_list <-  c("SYT7", "RSF1", "KCNQ2", "HDGFL2", "AGRN", "ACTL6B", "MYO18A", "MYO1C", "KALRN", "DNM1", "CAMK2B", "ADGRB1")
+slope_plot_nmd(gene_list)
 ```
 
+#ggtranscript visualization
+```{r}
+postar_bed <- fread("~/Desktop/rbp_bed/human_RBP_binding_sites_sorted.bed", 
+                    col.names = c("seqnames", "start", "end", "dataset", "score", "strand", "QC"))
+
+ensembl <- biomaRt::useEnsembl(biomart = "genes", dataset = "hsapiens_gene_ensembl")
+humandb <- biomaRt::getBM(attributes = c("external_gene_name", 
+                                         "ensembl_gene_id", "ensembl_transcript_id", "transcript_appris", 
+                                         "uniprotswissprot", "uniprotsptrembl", "uniprot_isoform"), 
+                          mart = ensembl)
+princ <- humandb[which(humandb$transcript_appris == "principal1" |
+                       humandb$transcript_appris == "principal2" | 
+                       humandb$transcript_appris == "principal3" | 
+                       humandb$transcript_appris == "principal4" |
+                       humandb$transcript_appris == "principal5"), ]
+
+cds_regions = cdsBy(TxDb.Hsapiens.UCSC.hg38.knownGene, "tx",use.names = TRUE)
+cds_regions = unlist(cds_regions)
+cds_regions$transcript_id = gsub("\\..*", "", names(cds_regions))
+
+exons_regions = exonsBy(TxDb.Hsapiens.UCSC.hg38.knownGene, "tx",use.names = TRUE)
+exons_regions = unlist(exons_regions)
+exons_regions$transcript_id = gsub("\\..*", "", names(exons_regions))
+
+for (i in gene_list) {
+ transcript_bind_plot(i) }
+```
+
+IRFinder
 ```{r}
 ir_top_level = "data/irfinder/"
 experiment = make_deframe_irfinder(ir_top_level,base_grep = "CTRL",
@@ -90,6 +166,7 @@ resultCTRL <- result %>%
 ```
 
 This is the vignette for the PCAtools package <https://bioconductor.org/packages/release/bioc/vignettes/PCAtools/inst/doc/PCAtools.html>
+GO analysis <https://yulab-smu.top/biomedical-knowledge-mining-book/clusterprofiler-go.html>
 ```{r}
 colnames(featureCounts) <- c("ensgene", 
                            "CTRL_chx_1", "CTRL_chx_2", "CTRL_chx_3", "CTRL_chx_4",
@@ -129,13 +206,9 @@ go <- pcaExplorer::pca2go(
 
 pcaExplorer(countmatrix = pca_table, coldata = meta_df, annotation = annotation, pca2go = go)
 
-#p <- PCAtools::pca(pca_table, metadata = meta_df, removeVar = 0.1)
-#screeplot(p, axisLabSize = 18, titleLabSize = 22)
-```
 
-GO analysis
-<https://yulab-smu.top/biomedical-knowledge-mining-book/clusterprofiler-go.html>
-```{r}
+
+
 results <- my.dds$results_table
 filtered_res <- filter(results, padj < 0.1 & abs(log2FoldChange) > 2)
 ## feature 1: numeric vector
