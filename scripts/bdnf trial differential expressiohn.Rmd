@@ -43,6 +43,8 @@ meta_df[,1] <- as.factor(meta_df[,1])
 meta_df[,2] <- as.factor(meta_df[,2])
 #pcaExplorer(countmatrix = pca_table, coldata = meta_df, annotation = annotation)
 
+gene_list <-  c("SYT7", "RSF1", "KCNQ2", "HDGFL2", "AGRN", "ACTL6B", "MYO18A", "MYO1C", "KALRN", "DNM1", "CAMK2B", "ADGRB1")
+
 grepperz <- c("CTRL", "DOX")
 for (k in grepperz) {
 my.dds <- run_standard_deseq("data/feature_count", 
@@ -51,7 +53,7 @@ my.dds <- run_standard_deseq("data/feature_count",
                              grep_pattern = k,
                              baseName = "Untreated",
                              contrastName = 'Cycloheximide')
-ppp <- label_significant(my.dds$results_table, log2FoldCut = 2, log10padj = 15) + annotate("text", x=8, y=-5, label=k)
+ppp <- label_significant(my.dds$results_table, gene_list, log2FoldCut = 2, log10padj = 15) + annotate("text", x=8, y=-5, label=k)
 plot(ppp)
 }
 
@@ -63,7 +65,7 @@ my.dds <- run_standard_deseq("data/feature_count",
                              grep_pattern = j,
                              baseName = "Untreated",
                              contrastName = 'TDP43KD')
-bbb <- label_significant(my.dds$results_table, log2FoldCut = 2, log10padj = 15) + annotate("text", x=7, y=-0.5, label=j)
+bbb <- label_significant(my.dds$results_table, gene_list, log2FoldCut = 2, log10padj = 15) + annotate("text", x=7, y=-0.5, label=j)
 plot(bbb)
 }
 ```
@@ -74,15 +76,6 @@ input <- c("ControlControl-ControlTDP43KD",
            "ControlControl-CycloheximideControl", 
            "ControlTDP43KD-CycloheximideTDP43KD",
            "CycloheximideControl-CycloheximideTDP43KD")
-
-for (i in input) {
-    input_csv <- paste(i, "csv", sep = ".")
-    input_splicing <- fread(file.path(here::here(), "data", input_csv))
-    input_splicing <- separate_rows(input_splicing, c(names(input_splicing[,c(4:9,12,15)])), sep  = c(";"), convert = T)
-    a <- splicing_dots_tables_function(input_splicing) + annotate("text", x=0.7, y=0.1, label=i)
-  plot(a)
-}
-
 datalista <- list()
 
 for (i in input) {
@@ -92,6 +85,10 @@ for (i in input) {
   input_bc_splicing <- fread(file.path(here::here(), "data", "majiq_delta", input_bc_csv))
   names(input_bc_splicing)[12] <- "base_mean_psi"
   names(input_bc_splicing)[13] <- "contrast_mean_psi"
+  
+  a <- splicing_dots_tables_function(input_bc_splicing,gene_list) + annotate("text", x=0.7, y=0.1, label=i)
+  plot(a)
+  
   datalista[[i]] <- input_bc_splicing
 }
 
@@ -114,7 +111,6 @@ for (i in input_list) {
 big_data <- rbindlist(datalist, idcol = TRUE)
 big_data$.id <- factor(big_data$.id, levels = input_list)
 
-gene_list <-  c("SYT7", "RSF1", "KCNQ2", "HDGFL2", "AGRN", "ACTL6B", "MYO18A", "MYO1C", "KALRN", "DNM1", "CAMK2B", "ADGRB1")
 slope_plot_nmd(gene_list)
 ```
 
@@ -142,8 +138,21 @@ exons_regions = exonsBy(TxDb.Hsapiens.UCSC.hg38.knownGene, "tx",use.names = TRUE
 exons_regions = unlist(exons_regions)
 exons_regions$transcript_id = gsub("\\..*", "", names(exons_regions))
 
+file_path = "data/sj_tabs/normalized_annotated/"
+suffix = "_normalized_annotated.csv"
+psi_files = list.files(file_path,
+                       pattern = suffix,
+                       full.names = TRUE)
+psi_list_full = purrr::map(psi_files,my_clean_reader)
+samp_ids = base::tolower(purrr::simplify(purrr::map(psi_files, basename)))
+samp_ids = gsub(suffix,"",samp_ids)
+##add on the name as an additional column
+psi_list_full = purrr::map2(psi_list_full, samp_ids, ~cbind(.x, SampleID = .y))
+psi_list_full = purrr::map(psi_list_full,my_name_fixer)
+psi_list_full = data.table::rbindlist(psi_list_full)
+
 for (i in gene_list) {
- transcript_bind_plot(i) }
+ transcript_bind_plot(i)}
 ```
 
 IRFinder

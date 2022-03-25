@@ -23,40 +23,75 @@
 #exons_regions = unlist(exons_regions)
 #exons_regions$transcript_id = gsub("\\..*", "", names(exons_regions))
 
+my_clean_reader = function(file){
+  as.data.table(janitor::clean_names(fread(file)))
+}
+my_name_fixer = function(tbl){
+  colnames(tbl) = gsub(colnames(tbl)[[9]],"psi",colnames(tbl))
+  return(tbl)
+}
+
+
+
 transcript_bind_plot <- function(gene_target) {
 
   cds_parent = as_tibble(cds_regions[cds_regions$transcript_id %in% princ$ensembl_transcript_id[princ$external_gene_name == gene_target]])
   exons_parent = as_tibble(exons_regions[exons_regions$transcript_id %in% princ$ensembl_transcript_id[princ$external_gene_name == gene_target]])
 
-  parent_cryptic  <- big_delta %>%  #change to input_splicing when adding to the Rmd
-    dplyr::filter(gene_name == gene_target & .id == "ControlControl-ControlTDP43KD" & mean_dpsi_per_lsv_junction > 0 & probability_changing > 0.9) #%>%
-    #group_by(paste_into_igv_junction) %>%
-    #dplyr::filter(mean_dpsi_per_lsv_junction > 0.1 & base_mean_psi < 0.05)
+ parent_cryptic <- psi_list_full %>%
+    dplyr::filter(seqnames %in% exons_parent$seqnames & start > min(exons_parent$start) & end < max(exons_parent$end)) %>%
+    #group_by(seqnames, start, end, strand_junction) %>%
+    dplyr::mutate(sample_category = paste0(word(SampleID, 2, sep = "_"), "-", word(SampleID, 3, sep = "_"))) %>%
+    dplyr::filter(sample_category == "dox-ctrl") %>% # | sample_category == "ctrl-ctrl") %>%
+    dplyr::filter(type != "annotated") %>%
+    dplyr::filter(psi > 0.1)
+
+#parent_cryptic_wider <- parent_cryptic %>%
+#   pivot_wider(id_cols = c(seqnames, start, end, sample_category),
+#               names_from = SampleID,
+#               values_from = psi) %>%
+#  mutate(mean_psi = rowMeans(parent_cryptic_wider[5:12], na.rm = T))
+
+ parent_cryptic_delta  <- big_delta %>%  #change to input_splicing when adding to the Rmd
+   dplyr::filter(gene_name == gene_target & .id == "ControlControl-ControlTDP43KD" & mean_dpsi_per_lsv_junction > 0 & probability_changing > 0.9) %>%
+   group_by(paste_into_igv_junction) %>%
+   dplyr::filter(mean_dpsi_per_lsv_junction > 0.1 & base_mean_psi < 0.05)
 
   parent_postar_bed <- postar_bed %>%
     dplyr::filter(seqnames %in% parent_cryptic$seqnames & start > min(exons_parent$start) & end < max(exons_parent$end)) %>%
     #dplyr::filter(seqnames %in% parent_cryptic$seqnames & start > min(parent_cryptic$start)-1000 & end < max(parent_cryptic$end)+1000) %>%
     mutate(RBP = paste0(".",word(dataset, 1, sep = "_"))) %>%
-    group_by(RBP) %>% dplyr::filter(n() > 3)
+    #group_by(RBP) %>% dplyr::filter(n() > 3) %>%
+    dplyr::filter(RBP == ".TARDBP")
 
-  if (nrow(parent_postar_bed) > 0) {# && nrow(exons_parent) > 0  && nrow(cds_parent) > 0) {
+ # if (nrow(parent_cryptic_delta) > 0) {# && nrow(exons_parent) > 0  && nrow(cds_parent) > 0) {
     
     plotz <- ggplot(aes(xstart = start, xend = end, y = gene_target), data = exons_parent) +
       geom_range(data = exons_parent, fill = "white", height = 0.2) +
       geom_range(data = cds_parent, fill = "black", height = 0.4) +
       geom_intron(data = to_intron(cds_parent), aes(strand = strand)) +
-      geom_junction(data = parent_cryptic, color = "#E41A1C", show.legend = F, junction.y.max = 0.6) +
+      geom_junction(data = parent_cryptic, aes(color = type), show.legend = T, junction.orientation = "top") +
+      #geom_junction(data = parent_cryptic_delta, junction.orientation = "bottom", junction.y.max = 0.6) +
       geom_range(aes(y=RBP), data = parent_postar_bed, color = "#377EB8", fill = "#377EB8", height = 0.3) +
       #ggforce::facet_zoom(xlim = c(min(parent_cryptic$start)-1000, max(parent_cryptic$end)+1000)) +
       ylab("") +
       scale_y_discrete(expand = c(0,2)) +
       theme_classic2() +
       theme(axis.line.y = element_blank(), axis.ticks.y = element_blank())
-    plot(plotz)
+    
+  if (nrow(parent_cryptic_delta) > 0) {
+      ploty <- plotz + geom_junction(data = parent_cryptic_delta, junction.orientation = "bottom", junction.y.max = 0.6)
+      plot(ploty)
   } else {
-    print(paste("No cryptics found in", gene_target))
+      plot(plotz) + annotate(geom = 'text', label = paste0("MAJIQ found no cryptics in ", gene_target), x = -Inf, y = Inf, hjust = 0, vjust = 1)
   }
+    
 }
+
+
+#Biostrings::getSeq(BSgenome, transcripts)...
+#Biostrings::translate...
+
 
 
 

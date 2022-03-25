@@ -1,12 +1,12 @@
 slope_plot_nmd <- function(gene_list){
 big_data_filtereds <- big_data %>%
   group_by(lsv_junc) %>%
-  filter(n() == 4) %>% #???
-  filter(mean_psi_per_lsv_junction[.id == "Control_Control"] < 0.05) %>%
-  filter(mean_psi_per_lsv_junction[.id == "Control_TDP43KD"] > 0.1) %>%
+  dplyr::filter(n() == 4) %>% #???
+  dplyr::filter(mean_psi_per_lsv_junction[.id == "Control_Control"] < 0.05) %>%
+  dplyr::filter(mean_psi_per_lsv_junction[.id == "Control_TDP43KD"] > 0.1) %>%
   #filter(mean_psi_per_lsv_junction[.id == "Cycloheximide_TDP43KD"] - mean_psi_per_lsv_junction[.id == "Control_TDP43KD"] > 0) %>% #&  #these tow filters are to make plot prettier
          #mean_psi_per_lsv_junction[.id == "Cycloheximide_TDP43KD"] - mean_psi_per_lsv_junction[.id == "Control_TDP43KD"] < 0.1) %>%
-  filter((mean_psi_per_lsv_junction[.id == "Control_TDP43KD"] - mean_psi_per_lsv_junction[.id == "Control_Control"] > 0.05 |
+  dplyr::filter((mean_psi_per_lsv_junction[.id == "Control_TDP43KD"] - mean_psi_per_lsv_junction[.id == "Control_Control"] > 0.05 |
            mean_psi_per_lsv_junction[.id == "Cycloheximide_TDP43KD"] - mean_psi_per_lsv_junction[.id == "Control_Control"] > 0.05)) %>% # &
            #mean_psi_per_lsv_junction[.id == "Cycloheximide_TDP43KD"] - mean_psi_per_lsv_junction[.id == "Cycloheximide_Control"] > 0.05) %>%   ###???
   mutate(color_gene_name = as.character(ifelse(mean_psi_per_lsv_junction[.id == "Cycloheximide_TDP43KD"] - mean_psi_per_lsv_junction[.id == "Control_TDP43KD"] > 0.05, 
@@ -15,7 +15,7 @@ big_data_filtereds <- big_data %>%
   mutate(label_junction = case_when(.id =="Control_TDP43KD" & gene_name %in% gene_list ~ gene_name, T ~ ""))
 
 big_data_filtereds %>%
-  filter(.id %in% c("Control_TDP43KD","Cycloheximide_TDP43KD")) %>%
+  dplyr::filter(.id %in% c("Control_TDP43KD","Cycloheximide_TDP43KD")) %>%
   ggplot(mapping = aes(x = .id, y = mean_psi_per_lsv_junction)) +
   facet_wrap(facets = vars(color_gene_name)) +
   geom_point(aes(color = color_gene_name, alpha = alpha_gene_name, group = lsv_junc), show.legend = F) + 

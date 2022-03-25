@@ -1,5 +1,5 @@
-splicing_dots_tables_function <- function(input_splicing) {
-  list_gene <- c("UNC13A", "INSR", "UNC13B", "STMN2")
+splicing_dots_tables_function <- function(input_splicing,list_gene) {
+  #list_gene <- c("UNC13A", "INSR", "UNC13B", "STMN2")
                  #"ARHGAP32", "ITGA7", "CEP290", "PRELID3A", "DLGAP1", "UNC13A", "CELF5", "HDGFL2", "ATG4B", "KCNQ2",
                  #"KALRN", "CAMK2B", "ADCY1", "STMN2", "PHF2", "IGSF21", "TFAP2E", "ADARB2", "PFKP", "SYT7", "RSF1", 
                  #"G2E3", "KIAA0753", "CBARP", "INSR", "PXDN", "TRAPPC12", "SETD5", "TMEM175", "EPB41L4A", "MTRR"), 
@@ -20,10 +20,10 @@ splicing_dots_tables_function <- function(input_splicing) {
                                     T ~ ""))
 
 fig1 <- ggplot() +
-  geom_point(data = splicing_dots_tables %>% filter(de_novo_junctions == 0),
+  geom_point(data = splicing_dots_tables %>% dplyr::filter(de_novo_junctions == 0),
              aes(x = mean_dpsi_per_lsv_junction, y = log10_test_stat,
                  alpha = graph_alpha, fill = "Annotated Junction"), pch = 21, size = 2) +
-  geom_point(data = splicing_dots_tables %>% filter(de_novo_junctions != 0),
+  geom_point(data = splicing_dots_tables %>% dplyr::filter(de_novo_junctions != 0),
              aes(x = mean_dpsi_per_lsv_junction, y = log10_test_stat,
                  alpha = graph_alpha, fill = "Novel Junction"), pch = 21, size = 2) +
   geom_text_repel(data = splicing_dots_tables[19 != ""],

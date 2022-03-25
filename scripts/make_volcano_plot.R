@@ -42,7 +42,7 @@ add_name_to_plot <-  function(res, gene_names = "Tardbp"){
     as.data.frame() %>%    
     #rownames_to_column('ensgene') %>% 
     left_join(annotables::grch38, by = 'symbol') %>%
-    filter(symbol %in% gene_name) 
+    dplyr::filter(symbol %in% gene_name) 
   
   named_plot <- first_plot + 
     geom_text(data = with_name, aes(label = symbol))
@@ -52,7 +52,7 @@ add_name_to_plot <-  function(res, gene_names = "Tardbp"){
 
 #this one will return the volcano plot with added gene name labels based on significance
 
-label_significant <- function(res, log2FoldCut = 1, log10padj = 1){
+label_significant <- function(res, list_gene, log2FoldCut = 1, log10padj = 1){
   first_plot <- make_volcano_plot(res)
   names(first_plot$data) <- c("ensgene", "baseMean", "log2FoldChange", "lfcSE", 
                               "stat", "pvalue", "padj", "symbol", "graph_alpha", "graph_color")
@@ -61,9 +61,9 @@ label_significant <- function(res, log2FoldCut = 1, log10padj = 1){
     as.data.frame() %>% 
     #rownames_to_column("ensgene") %>% 
     left_join(annotables::grch38)  %>% 
-    filter(-log10(padj) > log10padj) %>% 
-    filter(abs(log2FoldChange) > log2FoldCut) %>%
-    filter(ensgene == "ENSG00000196361.10" | ensgene == "ENSG00000161082.13")
+    dplyr::filter(-log10(padj) > log10padj) %>% 
+    dplyr::filter(abs(log2FoldChange) > log2FoldCut) %>%
+    dplyr::filter(symbol %in% list_gene)
   
   print(dim(with_name))
   named_plot <- first_plot +
