@@ -63,8 +63,8 @@ rename_relevel_for_deseq = function(coldata, baseName = "", contrastName = ""){
 
 # this function filters a count table
 filter_count_table = function(count_table){
-  keep <- rowSums(edgeR::cpm(count_table) > 0.5) >= 2
-  print("Filtered Genes by CPM greater than 0.5 in a least 2 samples")
+  keep <- rowSums(edgeR::cpm(count_table) > 5) >= 1
+  print("Filtered Genes by CPM greater than 5 in a least 1 samples")
   print(table(keep))
   return(count_table[keep, ])
 }
