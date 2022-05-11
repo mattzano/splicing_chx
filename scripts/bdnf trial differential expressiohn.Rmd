@@ -118,6 +118,8 @@ slope_plot_nmd(gene_list)
 ```{r}
 postar_bed <- fread("~/Desktop/rbp_bed/human_RBP_binding_sites_sorted.bed", 
                     col.names = c("seqnames", "start", "end", "dataset", "score", "strand", "QC"))
+sy5y_tdp_bed <- fread("~/Desktop/rbp_bed/tardbp-shsy5y-1-20210701-mh_mapped_to_genome_single_peaks.bed", 
+                    col.names = c("seqnames", "start", "end", "dataset", "score", "strand"))
 
 ensembl <- biomaRt::useEnsembl(biomart = "genes", dataset = "hsapiens_gene_ensembl")
 humandb <- biomaRt::getBM(attributes = c("external_gene_name", 
@@ -151,8 +153,11 @@ psi_list_full = purrr::map2(psi_list_full, samp_ids, ~cbind(.x, SampleID = .y))
 psi_list_full = purrr::map(psi_list_full,my_name_fixer)
 psi_list_full = data.table::rbindlist(psi_list_full)
 
+gene_list <- c("UNC13A")
+source(here::here('scripts','ggtranscript.R'))
 for (i in gene_list) {
- transcript_bind_plot(i)}
+ transcript_bind_plot(i)
+  }
 ```
 
 IRFinder
