@@ -65,7 +65,7 @@ my.dds <- run_standard_deseq("data/feature_count",
                              grep_pattern = j,
                              baseName = "Untreated",
                              contrastName = 'TDP43KD')
-bbb <- label_significant(my.dds$results_table, gene_list, log2FoldCut = 2, log10padj = 15) + annotate("text", x=7, y=-0.5, label=j)
+bbb <- label_significant(my.dds$results_table, gene_list), log2FoldCut = 2, log10padj = 15) + annotate("text", x=7, y=-0.5, label=j)
 plot(bbb)
 }
 ```
@@ -86,7 +86,7 @@ for (i in input) {
   names(input_bc_splicing)[12] <- "base_mean_psi"
   names(input_bc_splicing)[13] <- "contrast_mean_psi"
   
-  a <- splicing_dots_tables_function(input_bc_splicing,gene_list) + annotate("text", x=0.7, y=0.1, label=i)
+  a <- splicing_dots_tables_function(input_bc_splicing, c("UNC13A", "STMN2", "INSR", "ATG4B")) + annotate("text", x=0.7, y=0.1, label=i)
   plot(a)
   
   datalista[[i]] <- input_bc_splicing
@@ -153,8 +153,8 @@ psi_list_full = purrr::map2(psi_list_full, samp_ids, ~cbind(.x, SampleID = .y))
 psi_list_full = purrr::map(psi_list_full,my_name_fixer)
 psi_list_full = data.table::rbindlist(psi_list_full)
 
-gene_list <- c("UNC13A")
-source(here::here('scripts','ggtranscript.R'))
+#gene_list <- c("UNC13A")
+#source(here::here('scripts','ggtranscript.R'))
 for (i in gene_list) {
  transcript_bind_plot(i)
   }
