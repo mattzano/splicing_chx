@@ -37,35 +37,36 @@ transcript_bind_plot <- function(gene_target) {
   cds_parent = as_tibble(cds_regions[cds_regions$transcript_id %in% princ$ensembl_transcript_id[princ$external_gene_name == gene_target]])
   exons_parent = as_tibble(exons_regions[exons_regions$transcript_id %in% princ$ensembl_transcript_id[princ$external_gene_name == gene_target]])
 
- parent_cryptic <- psi_list_full %>%
-    dplyr::filter(seqnames %in% exons_parent$seqnames & start > min(exons_parent$start) & end < max(exons_parent$end)) %>%
-    #group_by(seqnames, start, end, strand_junction) %>%
-    dplyr::mutate(sample_category = paste0(word(SampleID, 2, sep = "_"), "-", word(SampleID, 3, sep = "_"))) %>%
-    dplyr::filter(sample_category == "dox-ctrl") %>% #| sample_category == "ctrl-ctrl") %>%
-    dplyr::filter(type != "annotated") %>%
-    dplyr::filter(psi > 0.1) %>%
-   dplyr::mutate(igv_junc = paste0(seqnames, ":", start, "-", end))
+# parent_cryptic <- psi_list_full %>%
+#    dplyr::filter(seqnames %in% exons_parent$seqnames & start > min(exons_parent$start) & end < max(exons_parent$end)) %>%
+#    #group_by(seqnames, start, end, strand_junction) %>%
+#    dplyr::mutate(sample_category = paste0(word(SampleID, 2, sep = "_"), "-", word(SampleID, 3, sep = "_"))) %>%
+#    dplyr::filter(sample_category == "dox-ctrl") %>% #| sample_category == "ctrl-ctrl") %>%
+#    dplyr::filter(type != "annotated") %>%
+#    dplyr::filter(psi > 0.1) %>%
+#   dplyr::mutate(igv_junc = paste0(seqnames, ":", start, "-", end))
  
- parent_cryptic_nt <- psi_list_full %>%
-   dplyr::filter(seqnames %in% exons_parent$seqnames & start > min(exons_parent$start) & end < max(exons_parent$end)) %>%
-   #group_by(seqnames, start, end, strand_junction) %>%
-   dplyr::mutate(sample_category = paste0(word(SampleID, 2, sep = "_"), "-", word(SampleID, 3, sep = "_"))) %>%
-   dplyr::filter(sample_category == "ctrl-ctrl") %>%
-   dplyr::filter(type != "annotated") %>%
-   dplyr::filter(psi < 0.05) %>%
-   dplyr::mutate(igv_junc = paste0(seqnames, ":", start, "-", end))
+# parent_cryptic_nt <- psi_list_full %>%
+#   dplyr::filter(seqnames %in% exons_parent$seqnames & start > min(exons_parent$start) & end < max(exons_parent$end)) %>%
+#   #group_by(seqnames, start, end, strand_junction) %>%
+#   dplyr::mutate(sample_category = paste0(word(SampleID, 2, sep = "_"), "-", word(SampleID, 3, sep = "_"))) %>%
+#   dplyr::filter(sample_category == "ctrl-ctrl") %>%
+#   dplyr::filter(type != "annotated") %>%
+#   dplyr::filter(psi < 0.05) %>%
+#   dplyr::mutate(igv_junc = paste0(seqnames, ":", start, "-", end))
  
- parent <- rbind(parent_cryptic, parent_cryptic_nt)
+# parent <- rbind(parent_cryptic, parent_cryptic_nt)
 
-parent_cryptic_wider <- parent %>%
-   pivot_wider(id_cols = c(igv_junc, type),
-               names_from = SampleID,
-               values_from = psi) %>%
-  mutate(mean_psi_dox = rowMeans(parent_cryptic_wider[2:5], na.rm = T)) %>%
-  mutate(mean_psi_ctrl = rowMeans(parent_cryptic_wider[6:9], na.rm = T)) %>%
-  mutate(delta_psi = mean_psi_dox - mean_psi_ctrl)
+#cparent_cryptic_wider <- parent %>%
+#   pivot_wider(id_cols = c(igv_junc, type),
+#               names_from = SampleID,
+#               values_from = psi)
 
-parent_cryptic_wider_filter <- parent_cryptic_wider[!is.na(parent_cryptic_wider$delta_psi),]
+#parent_cryptic_wider_filter <- parent_cryptic_wider %>%
+#  mutate(mean_psi_dox = rowMeans(parent_cryptic_wider[2:5], na.rm = T)) %>%
+#  mutate(mean_psi_ctrl = rowMeans(parent_cryptic_wider[6:9], na.rm = T)) %>%
+#  mutate(delta_psi = mean_psi_dox - mean_psi_ctrl) %>%
+#  dplyr::filter(!is.na((delta_psi)))
 
  parent_cryptic_delta  <- big_delta %>%  #change to input_splicing when adding to the Rmd
    dplyr::filter(gene_name == gene_target & .id == "ControlControl-ControlTDP43KD" & mean_dpsi_per_lsv_junction > 0 & probability_changing > 0.9) %>%
@@ -73,25 +74,23 @@ parent_cryptic_wider_filter <- parent_cryptic_wider[!is.na(parent_cryptic_wider$
    dplyr::filter(mean_dpsi_per_lsv_junction > 0.1 & base_mean_psi < 0.05)
 
   parent_postar_bed <- postar_bed %>%
-    dplyr::filter(seqnames %in% parent_cryptic$seqnames & start > min(exons_parent$start) & end < max(exons_parent$end)) %>%
+    dplyr::filter(seqnames %in% exons_parent$seqnames & start > min(exons_parent$start) & end < max(exons_parent$end)) %>%
     #dplyr::filter(seqnames %in% parent_cryptic$seqnames & start > min(parent_cryptic$start)-1000 & end < max(parent_cryptic$end)+1000) %>%
     mutate(RBP = paste0(".",word(dataset, 1, sep = "_"))) %>%
-    group_by(RBP) %>% dplyr::filter(n() > 3) %>%
-    dplyr::filter(RBP != ".TARDBP")
+    mutate(colour_gene = as.character(ifelse(QC == "-", 1, 0)))
+    #group_by(RBP) %>% dplyr::filter(n() > 3) %>%
+    #dplyr::filter(RBP != ".TARDBP")
   
   parent_sy5y_tdp_bed <- sy5y_tdp_bed %>%
-    dplyr::filter(seqnames %in% parent_cryptic$seqnames & start > min(exons_parent$start) & end < max(exons_parent$end))
+    dplyr::filter(seqnames %in% exons_parent$seqnames & start > min(exons_parent$start) & end < max(exons_parent$end))
     
 
- if (nrow(parent_cryptic_delta) > 0) {# && nrow(exons_parent) > 0  && nrow(cds_parent) > 0) {
-    
-    plotz <- ggplot(aes(xstart = start, xend = end, y = gene_target), data = exons_parent) +
+     plotz <- ggplot(aes(xstart = start, xend = end, y = gene_target), data = exons_parent) +
       geom_range(data = exons_parent, fill = "white", height = 0.2) +
       geom_range(data = cds_parent, fill = "black", height = 0.4) +
       geom_intron(data = to_intron(cds_parent), aes(strand = strand)) +
-      geom_junction(data = parent_cryptic, aes(color = type), show.legend = T, junction.orientation = "top") +
-      #geom_junction(data = parent_cryptic_delta, junction.orientation = "bottom", junction.y.max = 0.6) +
-      geom_range(aes(y=RBP), data = parent_postar_bed, color = "#377EB8", fill = "#377EB8", height = 0.3) +
+      geom_junction(data = parent_cryptic_delta, show.legend = F, junction.orientation = "top") +
+      geom_range(aes(y=RBP, fill = colour_gene, colour = colour_gene), data = parent_postar_bed, height = 0.3, show.legend = F) +
       #ggforce::facet_zoom(xlim = c(min(parent_cryptic_delta$start)-1000, max(parent_cryptic_delta$end)+1000)) +
       ylab("") +
       scale_y_discrete(expand = c(0,2)) +
@@ -99,11 +98,9 @@ parent_cryptic_wider_filter <- parent_cryptic_wider[!is.na(parent_cryptic_wider$
       theme(axis.line.y = element_blank(), axis.ticks.y = element_blank())
     
   if (nrow(parent_cryptic_delta) > 0) {
-      ploty <- plotz + geom_junction(data = parent_cryptic_delta, junction.orientation = "bottom")
-      plot(ploty)
+      plot(plotz)
   } else {
-      plot(plotz) + annotate(geom = 'text', label = paste0("MAJIQ found no cryptics in ", gene_target), x = -Inf, y = Inf, hjust = 0, vjust = 1)
-  }
+      print(paste0("MAJIQ found no cryptics in ", gene_target))
     
  }
 }

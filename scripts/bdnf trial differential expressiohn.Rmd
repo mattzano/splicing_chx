@@ -41,7 +41,7 @@ meta_df <- fread("data/metadata.csv")
 meta_df <- meta_df %>% column_to_rownames('sample') 
 meta_df[,1] <- as.factor(meta_df[,1])
 meta_df[,2] <- as.factor(meta_df[,2])
-#pcaExplorer(countmatrix = pca_table, coldata = meta_df, annotation = annotation)
+pcaExplorer(countmatrix = pca_table, coldata = meta_df, annotation = annotation)
 
 gene_list <-  c("SYT7", "RSF1", "KCNQ2", "HDGFL2", "AGRN", "ACTL6B", "MYO18A", "MYO1C", "KALRN", "DNM1", "CAMK2B", "ADGRB1")
 
@@ -116,10 +116,24 @@ slope_plot_nmd(gene_list)
 
 #ggtranscript visualization
 ```{r}
-postar_bed <- fread("~/Desktop/rbp_bed/human_RBP_binding_sites_sorted.bed", 
+postar_bedd <- fread("~/Desktop/rbp_bed/human_RBP_binding_sites_sorted.bed", 
                     col.names = c("seqnames", "start", "end", "dataset", "score", "strand", "QC"))
-sy5y_tdp_bed <- fread("~/Desktop/rbp_bed/tardbp-shsy5y-1-20210701-mh_mapped_to_genome_single_peaks.bed", 
-                    col.names = c("seqnames", "start", "end", "dataset", "score", "strand"))
+
+sy5y_tdp_bed_1 <- fread("~/Desktop/rbp_bed/tardbp-shsy5y-1-20210701-mh_mapped_to_genome_single_peaks.bed", 
+                      col.names = c("seqnames", "start", "end", "dataset", "score", "strand"))
+sy5y_tdp_bed_1 <- sy5y_tdp_bed_1 %>%
+  mutate(QC = "-") %>%
+  mutate(dataset = "zSy5yTDP")
+
+sy5y_tdp_bed_2 <- fread("~/Desktop/rbp_bed/tardbp-shsy5y-2-20210701-mh_mapped_to_genome_single_peaks.bed", 
+                        col.names = c("seqnames", "start", "end", "dataset", "score", "strand"))
+sy5y_tdp_bed_2 <- sy5y_tdp_bed_2 %>%
+  mutate(QC = "-") %>%
+  mutate(dataset = "zSy5yTDP")
+
+postar_bed <- rbind(postar_bedd, sy5y_tdp_bed_1, sy5y_tdp_bed_2)
+
+
 
 ensembl <- biomaRt::useEnsembl(biomart = "genes", dataset = "hsapiens_gene_ensembl")
 humandb <- biomaRt::getBM(attributes = c("external_gene_name", 
@@ -153,8 +167,8 @@ psi_list_full = purrr::map2(psi_list_full, samp_ids, ~cbind(.x, SampleID = .y))
 psi_list_full = purrr::map(psi_list_full,my_name_fixer)
 psi_list_full = data.table::rbindlist(psi_list_full)
 
-#gene_list <- c("UNC13A")
-#source(here::here('scripts','ggtranscript.R'))
+gene_list <- c("NTRK2", "UNC13A", "STMN2")
+source(here::here('scripts','ggtranscript.R'))
 for (i in gene_list) {
  transcript_bind_plot(i)
   }
