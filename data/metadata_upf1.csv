@@ -1,0 +1,17 @@
+﻿sample,condition,treatment,group
+scr_ctrl_1,0,ctrl,scr_ctrl
+scr_ctrl_2,0,ctrl,scr_ctrl
+scr_ctrl_3,0,ctrl,scr_ctrl
+scr_ctrl_4,0,ctrl,scr_ctrl
+scr_UPF1_1,0,UPF1KD,scr_UPF1KD
+scr_UPF1_2,0,UPF1KD,scr_UPF1KD
+scr_UPF1_3,0,UPF1KD,scr_UPF1KD
+scr_UPF1_4,0,UPF1KD,scr_UPF1KD
+TDP43_ctrl_1,1,ctrl,TDP43KD_ctrl
+TDP43_ctrl_2,1,ctrl,TDP43KD_ctrl
+TDP43_ctrl_3,1,ctrl,TDP43KD_ctrl
+TDP43_ctrl_4,1,ctrl,TDP43KD_ctrl
+TDP43_UPF1_1,1,UPF1KD,TDP43KD_UPF1KD
+TDP43_UPF1_2,1,UPF1KD,TDP43KD_UPF1KD
+TDP43_UPF1_3,1,UPF1KD,TDP43KD_UPF1KD
+TDP43_UPF1_4,1,UPF1KD,TDP43KD_UPF1KD

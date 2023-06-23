@@ -1,0 +1,13 @@
+{
+    "salmon_version": "1.8.0",
+    "index": "/SAN/vyplab/vyplab_reference_genomes/salmon/human/GRCh38/full/gencode_v40",
+    "libType": "A",
+    "mates1": "/SAN/vyplab/first_weeks/TDP_CHX_CLONES_GLIA/fastp_trimmed/placeholder_chx-tdp_DOX_chx_1_1.trimmed.fastq.gz",
+    "mates2": "/SAN/vyplab/first_weeks/TDP_CHX_CLONES_GLIA/fastp_trimmed/placeholder_chx-tdp_DOX_chx_1_2.trimmed.fastq.gz",
+    "threads": "4",
+    "output": "/SAN/vyplab/first_weeks/TDP_CHX_CLONES_GLIA/salmon/placeholder_chx-tdp_DOX_chx_1",
+    "seqBias": [],
+    "posBias": [],
+    "gcBias": [],
+    "auxDir": "aux_info"
+}

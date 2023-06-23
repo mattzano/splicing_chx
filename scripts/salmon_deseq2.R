@@ -33,57 +33,52 @@
 #outputdir = opt$outputdir
 #metadata_dir = opt$metadata
 #tx2gene = opt$tx2gene
-column_name = opt$column_name
-baseline = opt$baseline
-contrast = opt$contrast
-controls_name = opt$controls_name
-contrast_name = opt$contrast_name
-column_name = opt$column_name
+#column_name = opt$column_name
+#baseline = opt$baseline
+#contrast = opt$contrast
+#controls_name = opt$controls_name
+#contrast_name = opt$contrast_name
+#column_name = opt$column_name
 
-
-salmon_quant_directory = "~/Documents/GitHub/splicing_chx/data/salmon_chx"
-outputdir = "~/Documents/GitHub/splicing_chx/results/deseq2/"
-metadata_dir = "~/Documents/GitHub/splicing_chx/data/metadata.csv"
-tx2gene = "~/Documents/phd/research_lines/muscle/muscle_splicing/data/gencode.v40.tx2gene.csv"
+outputdir = "~/Documents/Github/splicing_chx/results/deseq2/"
+#metadata_dir = "~/Documents/Github/tdp43_concentration/data/metadata_dz_curves.csv" ###make this
+tx2gene = "~/Desktop/rbp_bed/gencode.v40.tx2gene.csv"
 column_name = "condition"
-baseline = "0"
-contrast = "1"
+baseline = 0
+contrast = 1
 controls_name = "Control"
 contrast_name = "TDP43KD"
 #column_name = opt$column_name
 
-
-
 output_path=paste0(outputdir,controls_name,"-",contrast_name,".")
 
 # ============================ section 1: import data ===========================
-library(dplyr)
-library(tidyr)
-#if (!require("BiocManager", quietly = TRUE))
-#  install.packages("BiocManager")
-#BiocManager::install("tximport")
-library(tximport)
-library(rlang)
-library(DESeq2)
 
 tx2gene <- data.table::fread(tx2gene,header=FALSE)
+tx2gene <- tx2gene[,c(1:2)]
 colnames(tx2gene) = c("TXNAME", "GENEID")
 
 #(1) First read in the metadata. if only a subset of the files are used, the opt$pattern option will be taken.
-metadata = read.csv(metadata_dir,header=TRUE)
 
-metadata = metadata %>% 
-  dplyr::select(sample, !!as.symbol(column_name)) %>% 
+salmon_deseq2 <- function(mutation, sample_dir, metadata_dir) {
+  
+metadata2 = metadata_dir %>% 
+  #dplyr::select(sample, !!as.symbol(column_name)) %>% 
   mutate(comparison_condition = case_when(!!as.symbol(column_name) == baseline ~ 'baseline',
                                           !!as.symbol(column_name) == contrast ~ 'contrast',
                                           TRUE ~ NA_character_)) %>% 
   dplyr::filter(!is.na(comparison_condition))
 
 ##
-metadata = metadata[c(5:8,13:16),]
 
+metadata <- metadata2 %>%
+  #dplyr::mutate(group = gsub('[[:digit:]]+', '', sample)) #%>%
+  dplyr::filter(treatment %in% mutation)
+print(metadata)
+    
+    
 #(2) Generate a vector of the wanted file names.
-files = unique(file.path(salmon_quant_directory,metadata$sample,"quant.sf")) 
+files = unique(file.path(sample_dir,metadata$sample,"quant.sf")) 
 names(files) = unique(metadata$sample)
 
 
@@ -105,14 +100,21 @@ txi.tx <- tximport(files,
 
 txi.sum <- summarizeToGene(txi.tx, tx2gene)
 
+keep <- rowSums(edgeR::cpm(txi.sum$counts) > 5) >= 2
+print("Filtered Genes by CPM greater than 5 in a least 2 samples")
+print(table(keep))
+txi.sum$counts <- txi.sum$counts[keep, ]
+txi.sum$abundance <- txi.sum$abundance[keep, ]
+txi.sum$length <- txi.sum$length[keep, ]
+
 # make it csv
 TPM_transcripts = as.data.frame(txi.tx$abundance) %>% 
   tibble::rownames_to_column(.,var="transcript_id")
 TPM_gene = as.data.frame(txi.sum$abundance) %>% 
   tibble::rownames_to_column(.,var="gene_id")
 
-write.csv(TPM_transcripts,"TPM_transcripts.csv")
-write.csv(TPM_gene,"TPM_gene.csv")
+#write.csv(TPM_transcripts,"TPM_transcripts.csv")
+#write.csv(TPM_gene,"TPM_gene.csv")
 
 
 # ========================================== section 4: RUN A DEFAULT DESEQ 2 (optional) =============================================================
@@ -123,20 +125,29 @@ dds = DESeqDataSetFromTximport(txi.sum,
                                design = ~ comparison_condition) 
 
 
+
 # 'Note that the tximport-to-DESeq2 approach uses estimated gene counts from the transcript abundance quantifiers, but not normalized counts' -- <Deseq2 vignette> (just a note - Deseq() wraps the normalization step inside)
 # perform the Deseq function
 dds = DESeq(dds)
 
 # Now, extract the result and named them by their contrast group
-results_table = results(dds) %>%
+results_table <<- results(dds) %>%
   as.data.frame() %>%
-  tibble::rownames_to_column('Geneid')
+  tibble::rownames_to_column('Geneid') %>%
+  mutate(ensgene = gsub("\\..*", "", Geneid)) %>%
+  left_join(annotables::grch38[c(1,3)])
+  
 # Now, extract the DESeq2 normed counts
-normed_counts = counts(dds, normalized = TRUE) %>%
+normed_counts <<- counts(dds, normalized = TRUE) %>%
   as.data.frame() %>%
-  tibble::rownames_to_column('Geneid')
+  tibble::rownames_to_column('Geneid') %>%
+  mutate(ensgene = gsub("\\..*", "", Geneid)) %>%
+  left_join(annotables::grch38[c(1,3)])
+summary(normed_counts)
+#return(results_table)
 
+}
 
-write.csv(results_table,"DESeq2_results.csv")
-write.csv(normed_counts,"DESeq2_normalized_counts.csv")
+#write.csv(results_table,"DESeq2_results.csv")
+#write.csv(normed_counts,"DESeq2_normalized_counts.csv")
 

@@ -1,0 +1,17 @@
+﻿sample,condition,treatment,group
+CTRL_cont_1,0,cont,CTRL_cont
+CTRL_cont_2,0,cont,CTRL_cont
+CTRL_cont_3,0,cont,CTRL_cont
+CTRL_cont_4,0,cont,CTRL_cont
+CTRL_cyhx_1,0,cyhx,CTRL_cyhx
+CTRL_cyhx_2,0,cyhx,CTRL_cyhx
+CTRL_cyhx_3,0,cyhx,CTRL_cyhx
+CTRL_cyhx_4,0,cyhx,CTRL_cyhx
+DOX_cont_1,1,cont,DOX_cont
+DOX_cont_2,1,cont,DOX_cont
+DOX_cont_3,1,cont,DOX_cont
+DOX_cont_4,1,cont,DOX_cont
+DOX_cyhx_1,1,cyhx,DOX_cyhx
+DOX_cyhx_2,1,cyhx,DOX_cyhx
+DOX_cyhx_3,1,cyhx,DOX_cyhx
+DOX_cyhx_4,1,cyhx,DOX_cyhx

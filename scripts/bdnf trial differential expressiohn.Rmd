@@ -8,110 +8,349 @@ date: "2022-01-10"
 knitr::opts_chunk$set(warning = FALSE, message = FALSE)
 if (!require("pacman")) install.packages("pacman")
 if (!requireNamespace("BiocManager", quietly = TRUE)) install.packages("BiocManager")
-pacman::p_load(tidyverse, data.table, janitor, ggpubr, ggrepel, magrittr, devtools, readxl, 
-               DESeq2, edgeR, annotables, PCAtools, clusterProfiler, "org.Hs.eg.db", enrichplot, 
-               pcaExplorer, topGO, ggtranscript, "TxDb.Hsapiens.UCSC.hg38.knownGene", GenomicRanges,
-               rtracklayer, ensembldb, biomaRt)
+pacman::p_load(tidyverse, data.table, ggrepel, magrittr, devtools, readxl, gprofiler2, janitor, ggpubr, 
+               DESeq2, edgeR, annotables, PCAtools, clusterProfiler, "org.Hs.eg.db", enrichplot, readxl, eulerr,
+               pcaExplorer, topGO, ggtranscript, "TxDb.Hsapiens.UCSC.hg38.knownGene","phastCons100way.UCSC.hg38",
+               "BSgenome.Hsapiens.UCSC.hg38",GenomicRanges,tximport,rlang,
+               rtracklayer, #ensembldb, 
+               biomaRt)
 
-source(here::here("/Users/matteozanovello/Documents/GitHub/splicing_chx",'scripts','create_feature_count_table.R'))
-source(here::here("/Users/matteozanovello/Documents/GitHub/splicing_chx",'scripts','run_standard_deseq.R'))
+source(here::here("/Users/matteozanovello/Documents/GitHub/splicing_chx",'scripts','salmon_deseq2.R'))
 source(here::here("/Users/matteozanovello/Documents/GitHub/splicing_chx",'scripts','make_volcano_plot.R'))
+
 source(here::here("/Users/matteozanovello/Documents/GitHub/splicing_chx",'scripts','splicing_volcanoplot.R'))
 source(here::here("/Users/matteozanovello/Documents/GitHub/splicing_chx",'scripts','trial_nmd_plots.R'))
-source(here::here("/Users/matteozanovello/Documents/GitHub/splicing_chx",'scripts','ggtranscript.R'))
-source(here::here("/Users/matteozanovello/Documents/GitHub/splicing_chx",'scripts','run_de_irfinder.R'))
+
+#source(here::here("/Users/matteozanovello/Documents/GitHub/splicing_chx",'scripts','GO_analysis_CM.R'))
+source(here::here('scripts','ggtranscript.R'))
+#source(here::here("/Users/matteozanovello/Documents/GitHub/splicing_chx",'scripts','ggtranscript.R'))
+#source(here::here("/Users/matteozanovello/Documents/GitHub/splicing_chx",'scripts','run_de_irfinder.R'))
 ```
 
 ```{r}
-featureCounts <- create_feature_count_table("data/feature_count") #change here!!
-#my_df <- make_deseq_dfs(featureCounts, grep_pattern = "", base_grep = "CTRL", contrast_grep = "DOX")
+### path to metadata (for salmon and pca)
+metadata_dir = fread("data/metadata_chx.csv")
+salmon_quant_directory_chx = "~/Documents/Github/splicing_chx/data/salmon_chx/"
 
-colnames(featureCounts) <- c("ensgene", 
-                           "CTRL_chx_1", "CTRL_chx_2", "CTRL_chx_3", "CTRL_chx_4",
-                           "CTRL_ctrl_1", "CTRL_ctrl_2", "CTRL_ctrl_3", "CTRL_ctrl_4",
-                           "DOX_chx_1", "DOX_chx_2", "DOX_chx_3", "DOX_chx_4", 
-                           "DOX_ctrl_1", "DOX_ctrl_2", "DOX_ctrl_3", "DOX_ctrl_4", 
-                           "gene_name")
-
-pca_table <- featureCounts[,1:17] %>%
-    column_to_rownames('ensgene')
-annotation <- featureCounts[,c(1,18)] %>%
-    column_to_rownames('ensgene')
-meta_df <- fread("data/metadata.csv")
-meta_df <- meta_df %>% column_to_rownames('sample') 
-meta_df[,1] <- as.factor(meta_df[,1])
-meta_df[,2] <- as.factor(meta_df[,2])
-pcaExplorer(countmatrix = pca_table, coldata = meta_df, annotation = annotation)
-
-gene_list <-  c("SYT7", "RSF1", "KCNQ2", "HDGFL2", "AGRN", "ACTL6B", "MYO18A", "MYO1C", "KALRN", "DNM1", "CAMK2B", "ADGRB1")
-
-grepperz <- c("CTRL", "DOX")
-for (k in grepperz) {
-my.dds <- run_standard_deseq("data/feature_count", 
-                             base_grep = "ctrl",
-                             contrast_grep = "chx",  
-                             grep_pattern = k,
-                             baseName = "Untreated",
-                             contrastName = 'Cycloheximide')
-ppp <- label_significant(my.dds$results_table, gene_list, log2FoldCut = 2, log10padj = 15) + annotate("text", x=8, y=-5, label=k)
-plot(ppp)
+### run salmon on different conditions - also print volcano plot here
+for (i in c("cont","cyhx")) {
+###for debugging  #mutation = 0 
+  salmon_deseq2(i, salmon_quant_directory_chx, metadata_dir)
+###debugging   #res = results_table   #log10padj = 5   #log2FoldCut = 2
+  bbb <- label_significant(results_table, log2FoldCut = 2.5, log10padj = 50) + annotate("text", x=0.9, y=0.1, label=i)
+  plot(bbb)
+  assign(paste0("DE_volcano_",i),bbb)
+  assign(paste0("normed_counts_",i),normed_counts)
+  assign(paste0("results_table_",i),results_table)
 }
 
-grepper <- c("ctrl", "_chx")
-for (j in grepper) {
-my.dds <- run_standard_deseq("data/feature_count", 
-                             base_grep = "CTRL",
-                             contrast_grep = "DOX",  
-                             grep_pattern = j,
-                             baseName = "Untreated",
-                             contrastName = 'TDP43KD')
-bbb <- label_significant(my.dds$results_table, gene_list, log2FoldCut = 2, log10padj = 15) + annotate("text", x=7, y=-0.5, label=j)
+#reactome <- fread("~/Desktop/reactome.txt", header = F)
+#reactome_list <- reactome$V1
+#nmd_genes <- results_table_cont %>% filter(symbol %in% reactome_list)
+#write.table(nmd_genes, "~/Desktop/nmd_reactome_FC.csv", quote = F, sep = ",", row.names = F)
+
+bbb <- label_significant(results_table_cont, log2FoldCut = 2, log10padj = 100)
+ccc <- label_significant(results_table_cyhx, log2FoldCut = 2, log10padj = 100)
+list_int <- reactome_list#c("TARDBP", "STMN2", "UNC13A", "UNC13B") #,
+              #"PFKP", "AGRN", "RAP1GAP", 
+              #"CAMK2B", "ELAVL3", "RANBP1", "NUP188", "CELF5", 
+              #"INSR", 
+              #"CYFIP2", "CDK7", 
+              #"NPY", "VIP")
+bbb <- add_name_to_plot(results_table_cont, list_int)
+ccc <- add_name_to_plot(results_table_cyhx, list_int)
 plot(bbb)
-}
+plot(ccc)
+dev.off()
+#ggsave(filename = "results/upgrade/de_cont.png", bbb, height = 5)
+#ggsave(filename = "results/upgrade/de_cyxh.png", ccc, height = 5)
+
+###salmon in all samples
+salmon_deseq2(c("cont","cyhx"), salmon_quant_directory_chx, metadata_dir)
+assign("normed_counts_chx_all",normed_counts)
+#assign(paste0("results_table_both"),results_table)
+normed_counts_chx_long <- normed_counts_chx_all[,c(2:17,19)] %>% 
+  #dplyr::filter(symbol == "TARDBP" | symbol == "UPF1" | symbol == "INSR") %>%
+  pivot_longer(c(1:16)) %>%
+  mutate(group = gsub("_[^_]+$", "", name))
 ```
 
-splicing volcano + slope plot
+data distribution
 ```{r}
+### gene expression - data distribution and pca analysis
+
+
+#density plot
+normed_counts_chx_long %>%
+  ggplot(aes(x = value, color = group)) +
+  geom_histogram(aes(y=..density..), colour="black", fill="white") +
+  geom_density() +
+  facet_wrap(facets = vars(group)) +
+  scale_color_brewer(palette="Set1") +
+  scale_x_log10() +
+  labs(x = expression(paste("Lo", g[10], " counts")), y = "Density", color = "Group") +
+  theme_classic()
+
+mean_counts <- normed_counts_chx_long %>%
+  group_by(group, symbol) %>%
+  mutate(meanz = mean(value)) %>%
+  mutate(varz = var(value)) 
+
+mean_counts %>% 
+  ggplot(aes(x=meanz, y=varz, color = group)) +
+  geom_point() +
+  geom_abline(intercept = 0, slope = 1, color="black") +
+  facet_wrap(facets = vars(group)) +
+  scale_color_brewer(palette="Set1") +
+  scale_x_log10() +
+  scale_y_log10() +
+  theme_classic()
+
+#quantile-quantile plot
+normed_counts_chx_long %>%
+  ggplot(aes(sample = value, color = group)) +
+  geom_qq() + ###??
+  geom_qq_line() + ###??
+  facet_wrap(facets = vars(group)) +
+  scale_color_brewer(palette="Set1") +
+  #scale_x_log10() +
+  theme_classic()
+
+### pca analysis
+pca <- normed_counts_chx_all[,c(1:17)] %>%
+  #arrange(CTRL_ctrl_1) %>% ####can be better?
+  distinct(Geneid, .keep_all = TRUE) %>%
+  #select(c(1:)) %>%
+  column_to_rownames('Geneid')
+  #column_to_rownames('ensgene') #%>% t()
+
+meta_df_chx <- metadata_dir %>% 
+  #mutate(condition = factor(condition, levels = c(0,1))) %>%
+  #mutate(treatment = factor(treatment, levels = c(0,1))) %>%
+    mutate(group = gsub("_[^_]+$", "", sample)) %>%
+  mutate(Condition = factor(condition, levels = c(0,1), labels = c("Control", "TDP43KD"))) %>%
+  mutate(Treatment = factor(treatment, levels = c("cont", "cyhx"), labels = c("Control", "Cycloheximide"))) %>%
+    column_to_rownames('sample') 
+
+pp <- PCAtools::pca(pca, metadata = meta_df_chx, removeVar = 0.1)
+screeplot(pp, axisLabSize = 18, titleLabSize = 22)
+PCAtools::eigencorplot(pp,components = getComponents(pp),
+                       metavars = c('condition',"treatment"))
+#nice pca plot
+#pdf("~/Documents/GitHub/splicing_chx/results/upgrade/pca.pdf", height = 2, width = 3.5, pointsize = 12)
+
+#rownames(pp)<-pp[,1]
+biplot(pp,
+       x = "PC1",
+       y = "PC2",
+       colby = "Treatment",
+       lab = NULL,
+       #ellipse = TRUE,
+      #encircleFill = TRUE,
+      colLegendTitle = "Treatment",
+      shape = "Condition", shapekey = c('Control'=1, 'TDP43KD'=16),
+      pointSize = 5,
+      legendPosition = 'top',
+      colkey = c('black', 'red3'))
+
+pairsplot(pp,
+    components = getComponents(pp, pp$metadata[,c(4:5)]),
+    triangle = TRUE, trianglelabSize = 12,
+    hline = 0, vline = 0,
+    pointSize = 0.4,
+    gridlines.major = FALSE, gridlines.minor = FALSE,
+    colby = 'Grade',
+    title = 'Pairs plot', plotaxes = FALSE,
+    margingaps = unit(c(-0.01, -0.01, -0.01, -0.01), 'cm'))
+#dev.off()
+
+library(ggfortify)
+ggplot2::autoplot(PCAtools::biplot(pca), label = FALSE)
+
+```
+
+splicing
+```{r}
+###splicing volcano + slope plot
+##delta psi tables - change these using purrr
 input <- c("ControlControl-ControlTDP43KD", 
            "ControlControl-CycloheximideControl", 
            "ControlTDP43KD-CycloheximideTDP43KD",
            "CycloheximideControl-CycloheximideTDP43KD")
 datalista <- list()
+list_gene <- c("UNC13A", "STMN2", "AARS1", #"UNC13B", 
+               "CELF5", "ELAVL3", "INSR", "ATG4B", #"KCNQ2", #"RANBP1", 
+               "NUP188","SYT7", #"WASL",
+                #"RAB1GAP", #"AGRN","PFKP", 
+                 #"HDGFL2","ARHGAP32", "CEP290", "PRELID3A", "KALRN",
+                 #"CAMK2B", "ADCY1", "TRAPPC12", "EPB41L4A", "IQCE", "SEMA4D"
+                 "CYFIP2", "SYNE1")
 
 for (i in input) {
-  contrast <- paste(i, "annotated", "junctions", sep = "_")
-  input_bc <- paste(contrast, sep = "-")
-  input_bc_csv <- paste(input_bc, "csv", sep = ".")
-  input_bc_splicing <- fread(file.path("/Users/matteozanovello/Documents/GitHub/splicing_chx", "data", "majiq_delta", input_bc_csv))
-  names(input_bc_splicing)[12] <- "base_mean_psi"
-  names(input_bc_splicing)[13] <- "contrast_mean_psi"
-  
-  a <- splicing_dots_tables_function(input_bc_splicing, c("UNC13A", "STMN2", "INSR", "ATG4B")) + annotate("text", x=0.7, y=0.1, label=i)
-  plot(a)
-  
-  datalista[[i]] <- input_bc_splicing
+  input_splicing <- fread(paste0("/Users/matteozanovello/Documents/GitHub/splicing_chx/data/majiq_delta/", i, "_annotated_junctions.csv"))
+  names(input_splicing)[12] <- "base_mean_psi"
+  names(input_splicing)[13] <- "contrast_mean_psi"
+  assign(paste0("DS_",i), input_splicing)
+  datalista[[i]] <- input_splicing
+  a <- splicing_dots_tables_function(input_splicing)
+  assign(paste0("splicing_volcano_", i), a)#+ annotate("text", x=0.7, y=0.1, label=i) ###change to few names
+  #plot(a)
 }
+big_delta_chx <- rbindlist(datalista, idcol = TRUE)
+big_delta_chx$.id <- factor(big_delta_chx$.id, levels = input)
 
-big_delta <- rbindlist(datalista, idcol = TRUE)
-big_delta$.id <- factor(big_delta$.id, levels = input)
+xxx <- plot(`splicing_volcano_ControlControl-ControlTDP43KD`)
+yyy <- plot(`splicing_volcano_CycloheximideControl-CycloheximideTDP43KD`)
+plot(xxx)
+plot(yyy)
+#ggsave(filename = "results/upgrade/ds_ctrl.png", xxx, width = 10, height = 6)
+#ggsave(filename = "results/upgrade/ds_cyhx.png", yyy, width = 10, height = 6)
 
+big_delta_chx %>%
+  dplyr::filter(.id == "ControlControl-ControlTDP43KD" & mean_dpsi_per_lsv_junction > 0.1 & base_mean_psi < 0.05 & probability_changing > 0.9) %>% 
+  distinct(gene_name) %>%
+  pull()
+
+###count splicing junctions and genes
+#big_delta_chx %>%
+#  dplyr::filter(.id == "CycloheximideControl-CycloheximideTDP43KD" & mean_dpsi_per_lsv_junction > 0.1 & base_mean_psi < 0.05 & probability_changing > 0.9) %>% 
+#  distinct(gene_name) %>%
+#  pull(gene_name)
+
+##single psi tables
 input_list <- c("Control_Control",
                 "Cycloheximide_Control", 
                 "Control_TDP43KD", 
                 "Cycloheximide_TDP43KD")
 datalist <- list()
-
 for (i in input_list) {
-  input <- paste(i, "parsed", sep = "_")
-  input_csv <- paste(input, "csv", sep = ".")
-  input_splicing <- fread(file.path("/Users/matteozanovello/Documents/GitHub/splicing_chx", "data", "majiq_single", input_csv))
-  datalist[[i]] <- input_splicing
+  input_single_splicing <- fread(paste0("/Users/matteozanovello/Documents/GitHub/splicing_chx/data/majiq_single/", i, "_parsed.csv"))
+  datalist[[i]] <- input_single_splicing
 }
+big_data_chx <- rbindlist(datalist, idcol = TRUE)
+big_data_chx$.id <- factor(big_data_chx$.id, levels = input_list)
 
-big_data <- rbindlist(datalist, idcol = TRUE)
-big_data$.id <- factor(big_data$.id, levels = input_list)
+#slope plot
+gene_list_slope <- c("STMN2", "UNC13A", "AARS1", 
+"SYNE1", "CYFIP2")
+big_data_chx_slope <- big_data_chx %>% filter(paste_into_igv_junction != "chr19:17618962-17620693")
+a <- slope_plot_nmd(big_data_chx_slope, 
+               gene_list_slope)
+plot(a)
+ggsave(filename = "~/Desktop/slope_dark.png",a, width = 7, height = 5.57)
 
-slope_plot_nmd(gene_list) #mmmmm check labelled genes
+```
+
+#go analysis
+```{r}
+#create input for GO - DE (do it also on DS)
+carmm <- results_table_cyhx
+cm_PR_up <- carmm %>% dplyr::filter(log2FoldChange > 0 & padj < 0.05) 
+cm_PR_up <- cm_PR_up[order(-cm_PR_up$log2FoldChange),]
+cm_PR_down <- carmm %>% dplyr::filter(log2FoldChange < 0 & padj < 0.05)
+cm_PR_down <- cm_PR_down[order(cm_PR_down$log2FoldChange),]
+
+#GO analysis
+go_cm_PR <- gprofiler2::gost(query = list(Upregulated = cm_PR_up$symbol,
+                                          Downregulated = cm_PR_down$symbol), 
+                             sources = c("GO:BP", "GO:CC", "GO:MF"), organism = 'hsapiens', 
+                             ordered_query = T, evcodes = TRUE)
+
+go_cm_PR$result %>%
+  dplyr::filter(-log10(p_value) > 40) %>%
+  arrange(source, desc(query), desc(p_value)) %>%
+  mutate(term_code = paste0(term_name, " (", term_id, ")")) %>%
+  mutate(term_code=factor(term_code, levels=unique(term_code))) %>%
+  ggplot(aes(y = term_code, group = query, x = -log10(p_value), fill = query)) +
+  geom_col(position = "dodge", width = 0.8) +
+  #geom_point(size = 10, show.legend = F) +
+  geom_text(aes(label = intersection_size), 
+            nudge_x = -1, size = 0.8) +
+  facet_grid(facets = vars(source), 
+             scales = "free_y", space = "free_y") +
+  theme_classic() +
+  scale_fill_manual(values = c("#FAD510", "#3B9AB2")) +
+  labs(title = "Enriched GO terms for significant genes in DOXvsCTRL", 
+       y = "Term name and code", 
+       x = expression(paste("-lo", g[10], " (", italic("P"), " value)")), fill = "") + 
+  theme(legend.position = "top",
+        legend.justification='left',
+        legend.key.size = unit(0.5,"line"),
+        strip.text = element_text(
+          size = 4)) +
+  theme(text = element_text(size = 6)) +
+  theme(plot.title = element_text(hjust = -0.5, size = 8)) +
+  theme(legend.text=element_text(size=4))
+
+
+###GO on DS
+carm_ds <- big_delta_chx %>% 
+  dplyr::filter(.id == "ControlControl-ControlTDP43KD" & base_mean_psi < 0.05 & mean_dpsi_per_lsv_junction > 0.1) %>%
+  arrange(-mean_dpsi_per_lsv_junction) %>% distinct(gene_name)
+go_cm_DS <- gprofiler2::gost(query = list(Splicing = carm_ds$gene_name),
+                                          #Downregulated = cm_DS_down$gene_name), 
+                             sources = c("GO:BP", "GO:CC", "GO:MF"), organism = 'hsapiens', 
+                             ordered_query = T, evcodes = TRUE)
+go_cm_DS$result %>%
+  dplyr::filter(-log10(p_value) > 1.5) %>%
+  arrange(source, desc(query), desc(p_value)) %>%
+  mutate(term_code = paste0(term_name, " (", term_id, ")")) %>%
+  mutate(term_code=factor(term_code, levels=unique(term_code))) %>%
+  ggplot(aes(y = term_code, group = query, x = -log10(p_value), fill = query)) +
+  geom_col(position = "dodge", width = 0.8) +
+  #geom_point(size = 10, show.legend = F) +
+  geom_text(aes(label = intersection_size), 
+            nudge_x = -1, size = 0.8) +
+  facet_grid(facets = vars(source), 
+             scales = "free_y", space = "free_y") +
+  theme_classic() +
+  scale_fill_manual(values = c("#FAD510", "#3B9AB2")) +
+  labs(title = "Enriched GO terms for significant genes in DOXvsCTRL", 
+       y = "Term name and code", 
+       x = expression(paste("-lo", g[10], " (", italic("P"), " value)")), fill = "") + 
+  theme(legend.position = "top",
+        legend.justification='left',
+        legend.key.size = unit(0.5,"line"),
+        strip.text = element_text(
+          size = 4)) +
+  theme(text = element_text(size = 6)) +
+  theme(plot.title = element_text(hjust = -0.5, size = 8)) +
+  theme(legend.text=element_text(size=4))
+
+###term overlap splicing and expression
+
+
+###venn diagram - compare TDP/CTRL in ctrl vs chx - also compare DE with DS
+up_PR_only <- carmm %>% dplyr::filter(FC_PR_WT > 1 & p_value_PR_WT < 0.05 &
+                                        (FC_GR_WT < 1 | p_value_GR_WT > 0.05)) 
+up_GR_only <- carmm %>% dplyr::filter(FC_GR_WT > 1 & p_value_GR_WT < 0.05 &
+                                        (FC_PR_WT < 1 | p_value_PR_WT > 0.05)) 
+down_PR_only <- carmm %>% dplyr::filter(FC_PR_WT < 1 & p_value_PR_WT < 0.05 &
+                                          (FC_GR_WT > 1 | p_value_GR_WT > 0.05))
+down_GR_only <- carmm %>% dplyr::filter(FC_GR_WT < 1 & p_value_GR_WT < 0.05 &
+                                          (FC_PR_WT > 1 | p_value_PR_WT > 0.05))
+#PR_down 509 - all_down 250 - PR_only 258
+#GR_down 474 - all_down 250 - GR_only 223
+#PR_up 329 - all_up 214 - PR_only 115
+#GR_up 309 - all_up 214 - GR_only 95
+
+mats_down <- c("(GR)400" = 223, "(PR)400" = 258, "(PR)400&(GR)400" = 250)
+
+fit_down <- euler(mats_down)
+#pdf("Venn_down.pdf", width = 3.5, height = 2, pointsize = 12)
+plot(fit_down, main = "Venn diagram showing downregulated genes in the two models",
+     quantities = list(type = c("counts")), labels = FALSE,
+     fills = c("#ffa040", "#55a0fb"))
+#dev.off()
+
+mats_up <- c("(GR)400" = 95, "(PR)400" = 115, "(PR)400&(GR)400" = 214)
+fit_up <- euler(mats_up)
+#pdf("Venn_up.pdf", width = 3.5, height = 2, pointsize = 12)
+plot(fit_up, main = "Venn diagram showing upregulated genes in the two models",
+     quantities = list(type = c("counts")), labels = FALSE,
+     fills = c("#ffa040", "#55a0fb"))
+#dev.off()
+
 ```
 
 #ggtranscript visualization
@@ -119,20 +358,20 @@ slope_plot_nmd(gene_list) #mmmmm check labelled genes
 postar_bedd <- fread("~/Desktop/rbp_bed/human_RBP_binding_sites_sorted.bed", 
                     col.names = c("seqnames", "start", "end", "dataset", "score", "strand", "QC"))
 
-sy5y_tdp_bed_1 <- fread("~/Desktop/rbp_bed/tardbp-shsy5y-1-20210701-mh_mapped_to_genome_single_peaks.bed", 
-                      col.names = c("seqnames", "start", "end", "dataset", "score", "strand"))
-sy5y_tdp_bed_1 <- sy5y_tdp_bed_1 %>%
-  mutate(QC = "-") %>%
-  mutate(dataset = "zSy5yTDP")
+#sy5y_tdp_bed_1 <- fread("~/Desktop/rbp_bed/tardbp-shsy5y-1-20210701-mh_mapped_to_genome_single_peaks.bed", 
+#                      col.names = c("seqnames", "start", "end", "dataset", "score", "strand"))
+#sy5y_tdp_bed_1 <- sy5y_tdp_bed_1 %>%
+#  mutate(QC = "-") %>%
+#  mutate(dataset = "zSy5yTDP")
 
-sy5y_tdp_bed_2 <- fread("~/Desktop/rbp_bed/tardbp-shsy5y-2-20210701-mh_mapped_to_genome_single_peaks.bed", 
-                        col.names = c("seqnames", "start", "end", "dataset", "score", "strand"))
-sy5y_tdp_bed_2 <- sy5y_tdp_bed_2 %>%
-  mutate(QC = "-") %>%
-  mutate(dataset = "zSy5yTDP")
+#sy5y_tdp_bed_2 <- fread("~/Desktop/rbp_bed/tardbp-shsy5y-2-20210701-mh_mapped_to_genome_single_peaks.bed", 
+#                        col.names = c("seqnames", "start", "end", "dataset", "score", "strand"))
+#sy5y_tdp_bed_2 <- sy5y_tdp_bed_2 %>%
+#  mutate(QC = "-") %>%
+#  mutate(dataset = "zSy5yTDP")
 
-postar_bed <- rbind(postar_bedd, sy5y_tdp_bed_1, sy5y_tdp_bed_2)
-
+#postar_bed <- rbind(postar_bedd, sy5y_tdp_bed_1, sy5y_tdp_bed_2)
+postar_bed <- postar_bedd
 
 ensembl <- biomaRt::useEnsembl(biomart = "genes", dataset = "hsapiens_gene_ensembl")
 humandb <- biomaRt::getBM(attributes = c("external_gene_name", 
@@ -153,27 +392,27 @@ exons_regions = exonsBy(TxDb.Hsapiens.UCSC.hg38.knownGene, "tx",use.names = TRUE
 exons_regions = unlist(exons_regions)
 exons_regions$transcript_id = gsub("\\..*", "", names(exons_regions))
 
-file_path = "data/sj_tabs/normalized_annotated/"
-suffix = "_normalized_annotated.csv"
-psi_files = list.files(file_path,
-                       pattern = suffix,
-                       full.names = TRUE)
-psi_list_full = purrr::map(psi_files,my_clean_reader)
-samp_ids = base::tolower(purrr::simplify(purrr::map(psi_files, basename)))
-samp_ids = gsub(suffix,"",samp_ids)
+#file_path = "data/sj_tabs/normalized_annotated/"
+#suffix = "_normalized_annotated.csv"
+#psi_files = list.files(file_path,
+#                       pattern = suffix,
+#                       full.names = TRUE)
+#psi_list_full = purrr::map(psi_files,my_clean_reader)
+#samp_ids = base::tolower(purrr::simplify(purrr::map(psi_files, basename)))
+#samp_ids = gsub(suffix,"",samp_ids)
 ##add on the name as an additional column
-psi_list_full = purrr::map2(psi_list_full, samp_ids, ~cbind(.x, SampleID = .y))
-psi_list_full = purrr::map(psi_list_full,my_name_fixer)
-psi_list_full = data.table::rbindlist(psi_list_full)
+#psi_list_full = purrr::map2(psi_list_full, samp_ids, ~cbind(.x, SampleID = .y))
+#psi_list_full = purrr::map(psi_list_full,my_name_fixer)
+#psi_list_full = data.table::rbindlist(psi_list_full)
 
-gene_list <- c("NTRK2", "UNC13A", "STMN2")
-source(here::here('scripts','ggtranscript.R'))
+gene_list <- c("CYFIP2", "SYNE1")
+#gene_target <- "CYFIP2"
 for (i in gene_list) {
  transcript_bind_plot(i)
   }
 ```
 
-IRFinder
+#IRFinder
 ```{r}
 ir_top_level = "data/irfinder/"
 experiment = make_deframe_irfinder(ir_top_level,base_grep = "CTRL",
@@ -182,7 +421,7 @@ paths = make_deframe_irfinder(ir_top_level,base_grep = "CTRL",
                                    contrast_grep = "DOX")$path
 
 #for (j in c("0.0125", "0.0187", "0.021", "0.025", "0.075")) {
-    experiment <- filter(experiment, grepl("ctrl", SampleNames))
+    experiment <- dplyr::filter(experiment, grepl("ctrl", SampleNames))
     paths <- paths[grepl("ctrl", paths)]
 #}
 
@@ -190,89 +429,4 @@ dds = run_deseq_ir(paths,experiment = experiment)
 result = return_formated_results(dds)
 resultCTRL <- result %>% 
     mutate(ir_change = TDPKD -  control)
-```
-
-This is the vignette for the PCAtools package <https://bioconductor.org/packages/release/bioc/vignettes/PCAtools/inst/doc/PCAtools.html>
-GO analysis <https://yulab-smu.top/biomedical-knowledge-mining-book/clusterprofiler-go.html>
-```{r}
-colnames(featureCounts) <- c("ensgene", 
-                           "CTRL_chx_1", "CTRL_chx_2", "CTRL_chx_3", "CTRL_chx_4",
-                           "CTRL_ctrl_1", "CTRL_ctrl_2", "CTRL_ctrl_3", "CTRL_ctrl_4",
-                           "DOX_chx_1", "DOX_chx_2", "DOX_chx_3", "DOX_chx_4", 
-                           "DOX_ctrl_1", "DOX_ctrl_2", "DOX_ctrl_3", "DOX_ctrl_4", 
-                           "gene_name")
-
-pca_table <- featureCounts[,1:17] %>%
-    column_to_rownames('ensgene')
-    
-path_to_meta_you_downloaded <-  "data/metadata.csv" #update this
-meta_df <- fread(path_to_meta_you_downloaded)
-meta_df <- meta_df %>%
-    column_to_rownames('sample') 
-meta_df[,1] <- as.factor(meta_df[,1])
-meta_df[,2] <- as.factor(meta_df[,2])
-
-annotation <- featureCounts[,c(1,18)] %>%
-    column_to_rownames('ensgene')
-
-#cols = c(1:16)    
-#pca_table[,cols] = apply(pca_table[,cols], 2, function(x) as.numeric(as.character(x)))
-
-se <- DESeqDataSetFromMatrix(countData = pca_table,
-                              colData = meta_df,
-                              design = ~ condition + treatment)
-se <- DESeqTransform(se)
-
-go <- pcaExplorer::pca2go(
-    se,
-  annotation = annotation,
-  inputType = "geneSymbol",
-  organism = "Hs",
-  ensToGeneSymbol = TRUE
-)
-
-pcaExplorer(countmatrix = pca_table, coldata = meta_df, annotation = annotation, pca2go = go)
-
-
-
-
-results <- my.dds$results_table
-filtered_res <- filter(results, padj < 0.1 & abs(log2FoldChange) > 2)
-## feature 1: numeric vector
-geneList <- pull(filtered_res,3)
-## feature 2: named vector
-names(geneList) = as.character(pull(filtered_res,8))
-## feature 3: decreasing order
-geneList = sort(geneList, decreasing = TRUE)
-
-ggo <- groupGO(gene = names(geneList),
-               OrgDb = org.Hs.eg.db,
-               keyType = "SYMBOL",
-               ont = "BP",
-               level = 3)
-cnetplot(ggo)
-
-ego <- enrichGO(gene = names(geneList),
-                keyType = "SYMBOL",
-                OrgDb = org.Hs.eg.db,
-                ont = "BP",
-                pAdjustMethod = "BH",
-                pvalueCutoff = 1,
-                qvalueCutoff = 1)
-goplot(ego)
-dotplot(ego, showCategory=30)
-cnetplot(ego, foldChange=geneList)
-
-pgo <- pairwise_termsim(ego)
-emapplot(pgo)
-
-gse <- gseGO(geneList     = geneList,
-              keyType = "SYMBOL",
-              OrgDb        = org.Hs.eg.db,
-              ont          = "CC",
-              minGSSize    = 50,
-              maxGSSize    = 200,
-              pvalueCutoff = 0.01,
-              verbose      = FALSE)
-gseaplot(gse, geneSetID="GO:0043231")
 ```

@@ -1,21 +1,38 @@
-slope_plot_nmd <- function(gene_list){
+slope_plot_nmd <- function(big_data, gene_list){
 big_data_filtereds <- big_data %>%
   group_by(lsv_junc) %>%
   dplyr::filter(n() == 4) %>% #???
-  dplyr::filter(mean_psi_per_lsv_junction[.id == "Control_Control"] < 0.05) %>%
-  dplyr::filter(mean_psi_per_lsv_junction[.id == "Control_TDP43KD"] > 0.1) %>%
-  #filter(mean_psi_per_lsv_junction[.id == "Cycloheximide_TDP43KD"] - mean_psi_per_lsv_junction[.id == "Control_TDP43KD"] > 0) %>% #&  #these tow filters are to make plot prettier
-         #mean_psi_per_lsv_junction[.id == "Cycloheximide_TDP43KD"] - mean_psi_per_lsv_junction[.id == "Control_TDP43KD"] < 0.1) %>%
-  dplyr::filter((mean_psi_per_lsv_junction[.id == "Control_TDP43KD"] - mean_psi_per_lsv_junction[.id == "Control_Control"] > 0.05 |
-           mean_psi_per_lsv_junction[.id == "Cycloheximide_TDP43KD"] - mean_psi_per_lsv_junction[.id == "Control_Control"] > 0.05)) %>% # &
-           #mean_psi_per_lsv_junction[.id == "Cycloheximide_TDP43KD"] - mean_psi_per_lsv_junction[.id == "Cycloheximide_Control"] > 0.05) %>%   ###???
-  mutate(color_gene_name = as.character(ifelse(mean_psi_per_lsv_junction[.id == "Cycloheximide_TDP43KD"] - mean_psi_per_lsv_junction[.id == "Control_TDP43KD"] > 0.05, 
-                                               "Delta PSI > 0.05", "Delta PSI < 0.05"))) %>%
-  mutate(alpha_gene_name = as.character(ifelse(gene_name %in% gene_list, 1, 0))) %>%#c("chr19:17641556-17642414","chr8:79611214-79616822"),"chr20:63439708-63444659","chr10:3099819-3101365","chr2:241668985-241670726","chr19:7169831-7170537"), 
-  mutate(label_junction = case_when(.id =="Control_TDP43KD" & gene_name %in% gene_list ~ gene_name, T ~ ""))
+  dplyr::filter(de_novo_junctions == 1) %>%
+  dplyr::filter(mean_psi_per_lsv_junction[.id == input_list[1]] < 0.05) %>%
+  dplyr::filter(mean_psi_per_lsv_junction[.id == input_list[2]] < 0.05) %>%
+  #dplyr::filter(mean_psi_per_lsv_junction[.id == input_list[3]] < 0.05) %>% 
+  dplyr::filter(mean_psi_per_lsv_junction[.id == input_list[4]] > 0.1) %>%
+  dplyr::filter((mean_psi_per_lsv_junction[.id == input_list[3]] - mean_psi_per_lsv_junction[.id == input_list[1]] > 0.05 |
+           mean_psi_per_lsv_junction[.id == input_list[4]] - mean_psi_per_lsv_junction[.id == input_list[1]] > 0.05)) %>%
+  #dplyr::filter(mean_psi_per_lsv_junction[.id == input_list[4]] - mean_psi_per_lsv_junction[.id == input_list[3]] > 0) %>%# &
+  mutate(color_gene_name = as.character(ifelse(mean_psi_per_lsv_junction[.id == input_list[4]] - mean_psi_per_lsv_junction[.id == input_list[3]] > 0.05, 
+                                               "NMD rescued", "non-NMD rescued"))) %>%
+  mutate(alpha_gene_name = as.character(ifelse(mean_psi_per_lsv_junction[.id == input_list[4]] > 0.2 &
+                                                 #gene_name %in% gene_list, 1, 0))) %>%
+                                                 paste_into_igv_junction %in% c("chr19:17641556-17642414","chr8:79611214-79616822", #UNC13A, STMN2
+                                                                                "chr16:70272882-70276486", #"chr16:70271972-70272796", #AARS1
+                                                                                "chr5:157361336-157361468", #CYFIP2
+                                                                                "chr6:152247944-152249161" #, "chr6:152244656-152247823" #SYNE1
+                                                                              
+                                                                                #"chr20:63439708-63444659","chr10:3099819-3101365",
+                                                                                #"chr2:241668985-241670726","chr19:7169831-7170537"
+                                                                                ), 1, 0))) %>% 
+  mutate(label_junction = case_when(.id == input_list[4] & mean_psi_per_lsv_junction[.id == input_list[4]] > 0.2 &
+                                      alpha_gene_name == 1 ~ gene_name, T ~ ""))
+                                           #gene_name %in% gene_list ~ gene_name, T ~ ""))
+table(big_data_filtereds$color_gene_name)
 
-big_data_filtereds %>%
-  dplyr::filter(.id %in% c("Control_TDP43KD","Cycloheximide_TDP43KD")) %>%
+#big_data_filtereds_list <- big_data_filtereds %>% filter(color_gene_name == "Delta PSI > 0.05") %>% pull(gene_name) %>% unique()
+
+#rite.table(big_data_filtereds, "~/Desktop/nmd_or_not.csv", quote = F, row.names = F, sep = ",")
+
+ploss <- big_data_filtereds %>%
+  dplyr::filter(.id %in% c(input_list[3],input_list[4])) %>%
   ggplot(mapping = aes(x = .id, y = mean_psi_per_lsv_junction)) +
   facet_wrap(facets = vars(color_gene_name)) +
   geom_point(aes(color = color_gene_name, alpha = alpha_gene_name, group = lsv_junc), show.legend = F) + 
@@ -28,8 +45,10 @@ big_data_filtereds %>%
   scale_alpha_manual(values = c(0.02,1)) +
   xlab("") +
   ylab("PSI") +
-  scale_x_discrete(labels = c("TDP43-KD", "TDP43-KD+CHX")) +
+  scale_x_discrete(labels = c("TDP43-KD", "TDP43-KD + NMD inhibition")) +
   theme_classic()
+#plot(ploss)
+return(ploss)
 }
 
 #avg_read_counts <- featureCounts %>%
