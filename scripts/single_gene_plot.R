@@ -1,25 +1,74 @@
 for_single_gene_plot <- normed_counts_UPF1_long %>%
-  dplyr::filter(symbol == "TARDBP") # | symbol == "UNC13A" | symbol == "STMN2" | symbol == "AARS")
+  dplyr::filter(symbol == "TARDBP" | symbol == "UPF1") %>%  #| symbol == "STMN2" | symbol == "AARS")
+  separate(group, into = c("condition", "treatment"), sep = "_", remove = F) %>% 
+  mutate(condition = ifelse(condition == "scr", "Control", "TDP43KD"),
+         treatment = ifelse(treatment == "ctrl", "Control", "UPF1KD")) %>% 
+  mutate(label = paste0(condition,"/",treatment))
 
 library(rstatix)
 stattest <- for_single_gene_plot %>%
   group_by(symbol) %>%
-  t_test(value ~ group) %>%
+  t_test(value ~ group) %>% 
   add_significance() %>% 
   add_xy_position(x="group")
 stattest
+stattest <- stattest[c(2:5,7,9,10,12),]
+tdp_lab <- max(for_single_gene_plot$value[for_single_gene_plot$symbol == "TARDBP"])
+tdp_delta <- (max(for_single_gene_plot$value[for_single_gene_plot$symbol == "TARDBP"])-
+  min(for_single_gene_plot$value[for_single_gene_plot$symbol == "TARDBP"])) /16
+upf_lab <- max(for_single_gene_plot$value[for_single_gene_plot$symbol == "UPF1"])
+upf_delta <-  (max(for_single_gene_plot$value[for_single_gene_plot$symbol == "UPF1"])-
+                 min(for_single_gene_plot$value[for_single_gene_plot$symbol == "UPF1"])) /16
+
+stattest$y.position <- c(tdp_lab+2*tdp_delta, tdp_lab+4*tdp_delta, tdp_lab+6*tdp_delta, 
+                         tdp_lab+8*tdp_delta, #tdp_lab+18*tdp_delta, #tdp_lab+22*tdp_delta,
+                          upf_lab+2*upf_delta,upf_lab+4*upf_delta,upf_lab+6*upf_delta,
+                         upf_lab+8*upf_delta)#,
+                          #upf_lab+22*upf_delta,
+                          #upf_lab+18*upf_delta)
+
+
 
 for_single_gene_plot %>%
-  ggplot(aes(x = group, y = value, color = symbol)) +
-  geom_boxplot(alpha = 0.1) +
-  geom_point(position = position_dodge2(width = 1)) +
-  #stat_pvalue_manual(stattest, hide.ns = T) + #[c(1,2),]) +
+  ggplot(aes(x = label, y = value, color = symbol)) +
+  geom_boxplot(alpha = 0.1, show.legend = F) +
+  geom_point(position = position_dodge2(width = 1), show.legend = F) +
+  #stat_pvalue_manual(stattest, hide.ns = F) + #[c(1,2),]) +
   #scale_y_continuous(breaks = c(0,100,1000,5000,10000,20000,30000)) +
-  scale_y_log10() +
-  facet_wrap(facets = vars(symbol)) +
+  #scale_y_log10() +
+  scale_color_brewer(palette = "Set1") +
+  facet_wrap(facets = vars(symbol), scales = "free_y") +
+  xlab("") + ylab("Reads per million") +
   theme_classic() +
   theme(axis.text.x = element_text(angle = 90))
 
+#ggsave(filename = "~/Desktop/tdp_upf_level.png")
+
+
+
+library(tidyverse)
+for_single_gene_plot <- normed_counts_UPF1_long %>%
+  dplyr::filter(#symbol == "TARDBP" | symbol == "UPF1"| symbol == "STMN2" |
+    symbol == "INSR") %>% 
+  separate(group, into = c("condition", "treatment"), sep = "_", remove = F) %>% 
+  #mutate(condition = ifelse(condition == "scr", "Control", "TDP43KD"),
+  #       treatment = ifelse(treatment == "ctrl", "Control", "UPF1KD")) %>% 
+  mutate(label = paste0(condition,"/",treatment))
+
+for_single_gene_plot %>%
+  filter(label != "scr/UPF1") %>% 
+  #filter(label != "CTRL/cyhx") %>% 
+  ggplot(aes(x = label, y = value, color = symbol)) +
+  geom_boxplot(alpha = 0.1, show.legend = F) +
+  geom_point(position = position_dodge2(width = 0.5), show.legend = F) +
+  #stat_pvalue_manual(stattest, hide.ns = F) + #[c(1,2),]) +
+  #scale_y_continuous(breaks = c(0,100,1000,5000,10000,20000,30000)) +
+  #scale_y_log10() +
+  scale_color_brewer(palette = "Set1") +
+  facet_wrap(facets = vars(symbol), scales = "free_y") +
+  xlab("") + ylab("Reads per million") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 90))
 
 
 #compare chx and upf1

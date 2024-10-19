@@ -42,7 +42,7 @@
 
 outputdir = "~/Documents/Github/splicing_chx/results/deseq2/"
 #metadata_dir = "~/Documents/Github/tdp43_concentration/data/metadata_dz_curves.csv" ###make this
-tx2gene = "~/Desktop/rbp_bed/gencode.v40.tx2gene.csv"
+tx2gene = "/Users/matteozanovello/Documents/phd/research_lines/rbp_bed/gencode.v40.tx2gene.csv"
 column_name = "condition"
 baseline = 0
 contrast = 1

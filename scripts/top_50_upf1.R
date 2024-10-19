@@ -101,7 +101,8 @@ sample_dir = "~/Documents/GitHub/splicing_chx/data/salmon_upf1/"
   summary(normed_counts)
   #return(results_table)
   
-
+write.table(results_table_upf1vsctrl, "~/Desktop/results_table_upf1_vs_ctrl.csv",
+            sep = ",", quote = F, row.names = F)
 
 results_table_upf1vsctrl_filtered <- results_table_upf1vsctrl %>%
   filter(log2FoldChange > 1 | log2FoldChange < -1) %>%
@@ -120,8 +121,8 @@ ggplot(data = results_table_upf1vsctrl_filtered_2, aes(x = reorder(symbol, log2F
   theme_classic() +
   colorspace::scale_fill_continuous_diverging() +
   theme(axis.text.x = element_text(angle = 90))
-
-
+ 
+results_table_upf1vsctrl_filtered_2 %>% pull(symbol) %>% write.csv("~/Desktop/top50_upf1.csv")
 
 
 ###concordance differential expression

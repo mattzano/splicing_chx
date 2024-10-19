@@ -33,7 +33,7 @@ my_name_fixer = function(tbl){
 
 
 transcript_bind_plot <- function(gene_target) {
- gene_target = "HDGFL2"
+ #gene_target = "HDGFL2"
   cds_parent = as_tibble(cds_regions[cds_regions$transcript_id %in% princ$ensembl_transcript_id[princ$external_gene_name == gene_target]])
   exons_parent = as_tibble(exons_regions[exons_regions$transcript_id %in% princ$ensembl_transcript_id[princ$external_gene_name == gene_target]])
 
@@ -69,14 +69,17 @@ transcript_bind_plot <- function(gene_target) {
 #  dplyr::filter(!is.na((delta_psi)))
 
  parent_cryptic_delta  <- big_delta_chx %>%  #change to input_splicing when adding to the Rmd
-   dplyr::filter(gene_name == gene_target & .id == "CycloheximideControl-CycloheximideTDP43KD" & mean_dpsi_per_lsv_junction > 0 & probability_changing > 0.9) #%>%
+   dplyr::filter(gene_name == gene_target & .id == "ControlControl-ControlTDP43KD" & 
+                   mean_dpsi_per_lsv_junction > 0 & probability_changing > 0.9) %>%
+   arrange(desc(mean_dpsi_per_lsv_junction)) %>% 
+   distinct(gene_name, .keep_all = T)
    #group_by(paste_into_igv_junction) %>%
    #dplyr::filter(mean_dpsi_per_lsv_junction > 0.1 & base_mean_psi < 0.05)
  #parent_cryptic_delta <- parent_cryptic_delta[c(1,3),]   
  #datapp <- as.data.frame(c(parent_cryptic_delta[1,3], parent_cryptic_delta[2,4]))
   parent_postar_bed <- postar_bed %>%
     dplyr::filter(seqnames %in% exons_parent$seqnames & start > min(exons_parent$start) & end < max(exons_parent$end)) %>%
-    dplyr::filter(seqnames %in% parent_cryptic_delta$seqnames & start > min(parent_cryptic_delta$start)-1000 & end < max(parent_cryptic_delta$end)+1000) %>%
+    dplyr::filter(seqnames %in% parent_cryptic_delta$seqnames & start > min(parent_cryptic_delta$start)-100 & end < max(parent_cryptic_delta$end)+100) %>%
     mutate(RBP = paste0(".",word(dataset, 1, sep = "_"))) %>%
     #mutate(colour_gene = as.character(ifelse(QC == "-", 1, 0))) %>%
     #group_by(RBP) %>% dplyr::filter(n() > 3) %>%
@@ -94,7 +97,7 @@ transcript_bind_plot <- function(gene_target) {
       geom_intron(data = to_intron(cds_parent), aes(strand = strand)) +
       geom_junction(data = parent_cryptic_delta, show.legend = F, junction.orientation = "top") +
       geom_range(aes(y=RBP, fill = colour_gene, colour = colour_gene), data = parent_postar_bed, height = 0.3, show.legend = F) +
-      #ggforce::facet_zoom(xlim = c(min(parent_cryptic_delta$start)-500, max(parent_cryptic_delta$end)+500)) +
+      ggforce::facet_zoom(xlim = c(min(parent_cryptic_delta$start)-100, max(parent_cryptic_delta$end)+100)) +
       #geom_range(data = datapp) +
        #geom_segment(aes(x = 79630000, xend = 79630000, y = 4.75, yend = 4.95), 
       #             arrow = arrow(type="closed", length = unit(5,"points"))) +
@@ -105,7 +108,7 @@ transcript_bind_plot <- function(gene_target) {
       theme_classic2() +
       theme(axis.line.y = element_blank(), axis.ticks.y = element_blank())
     
-  if (nrow(parent_cryptic_delta) > 0) {
+  if (nrow(parent_cryptic_delta) > 0 & nrow(parent_postar_bed) > 0) {
       plot(plotz)
   } else {
       print(paste0("MAJIQ found no cryptics in ", gene_target))

@@ -2,6 +2,7 @@ library(TxDb.Hsapiens.UCSC.hg38.knownGene)
 library(tidyverse)
 library(data.table)
 library(GenomicFeatures)
+BiocManager::install("plyranges")
 library(plyranges)
 ## 'cds_by_tx' must be a GRangesList object obtained with cdsBy(txdb, by="tx")
 addCdsPhase <- function(cds_by_tx)
@@ -89,7 +90,12 @@ my_orf = function (transcripts, BSgenome = NULL, returnLongestOnly = TRUE,
 
 
 txdb = transcripts(TxDb.Hsapiens.UCSC.hg38.knownGene)
-cryptic_regions = fread("/Users/annaleigh/Documents/GitHub/biomarker_with_sahba/data/concated_ce_with_transcripts.txt")
+#cryptic_regions = fread("/Users/annaleigh/Documents/GitHub/biomarker_with_sahba/data/concated_ce_with_transcripts.txt")
+
+cryptic_regions_protein_coding <- muscle %>% 
+  left_join(annotables::grch38[,c(1,8,3)]) %>% 
+  left_join(annotables::grch38_tx2gene) %>% 
+  filter(biotype == "protein_coding") 
 
 cryptic_regions_protein_coding = cryptic_regions %>% 
     mutate(V2 = ifelse(V6 == "-",V2 + 1,V2)) %>% 
@@ -106,14 +112,15 @@ cryptic_regions_protein_coding = cryptic_regions %>%
     select(-biotype.x,-biotype.y) %>% 
     filter(biotype_full == 'protein_coding')
 
+##mine is too large - keep only one trascript
 cryptic_regions_protein_coding = cryptic_regions_protein_coding %>% 
     makeGRangesFromDataFrame(keep.extra.columns = TRUE,
                              seqnames.field = 'V1',
                             start.field = 'V2',
                             end.field = 'V3',
-                            strand.field = 'V6')
+                            strand.field = 'V5')
 
-cryptic_regions_protein_coding$transcript_id = cryptic_regions_protein_coding$V8
+cryptic_regions_protein_coding$transcript_id = cryptic_regions_protein_coding$enstxp
 
 cds_regions = cdsBy(TxDb.Hsapiens.UCSC.hg38.knownGene, "tx",use.names = TRUE)
 cds_regions = unlist(cds_regions)
@@ -125,9 +132,12 @@ rm(i)
 peptides = c()
 with_peptide = c()
 
-for(i in 1:length(cryptic_regions_protein_coding)){
 
-    gene_name = cryptic_regions_protein_coding[i]$V7
+
+
+for(i in 1:length(cryptic_regions_protein_coding)){
+    i = 1
+    gene_name = cryptic_regions_protein_coding[i]$V4
     print(gene_name)
     parent_transcript = cryptic_regions_protein_coding[i]$transcript_id
     cds_parent = cds_regions %>% filter(transcript_id == parent_transcript)
@@ -191,7 +201,7 @@ df <- data.frame(seqnames=seqnames(new_model),
                  scores=c(rep(".", length(new_model))),
                  strands=strand(new_model))
 
-write.table(df, file="foo.bed", quote=F, sep="\t", row.names=F, col.names=F)
+#write.table(df, file="foo.bed", quote=F, sep="\t", row.names=F, col.names=F)
 
 
 

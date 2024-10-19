@@ -228,15 +228,20 @@ big_data_filterereds %>%
 
 dark_cryptome_counts <- read_csv("data/dark_cryptome_counts.csv") ####update?
 dark_cryptome_counts %>%
-  dplyr::filter(gene == "CYFIP2") %>%
+  dplyr::filter(gene == "SYNE1") %>%
   dplyr::filter(region %in% c("Cerebellum", "Cortex", "Spinal_Cord")) %>%
-  ggplot(aes(x = disease, y = spliced_reads, color = tdp_path)) +
-  geom_point(position = position_jitter(width = 0.35, height = 0.1), show.legend = F) +
+  ggplot(aes(x = disease, y = spliced_reads, fill = tdp_path)) +
+ #geom_boxplot(outlier.colour = NA, show.legend = F) +
+  geom_jitter(height = 0,
+              #alpha = 0.7, 
+              pch = 21, show.legend = F) +
+  #geom_point(position = position_jitter(width = 0.35, height = 0.1), show.legend = F) +
   facet_wrap(facets = vars(region)) +
-  scale_color_manual(values = c("#7ACB8C", "#DC9A72")) +
+  scale_fill_manual(values = c("#7ACB8C", "#DC9A72")) +
   xlab("") +
   ylab("Cryptic exon reads per million") +
   theme_classic() +
+  #ggpubr::theme_pubr() +
   theme(text = element_text(size = 22),
         axis.text.x = element_text(angle = 90))
 table(dark_cryptome_counts$disease[dark_cryptome_counts$region == "Spinal_Cord"])

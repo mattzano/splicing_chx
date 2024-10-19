@@ -15,11 +15,11 @@ pacman::p_load(tidyverse, data.table, ggrepel, magrittr, devtools, readxl, gprof
                rtracklayer, #ensembldb, 
                biomaRt)
 
-source(here::here("/Users/matteozanovello/Documents/GitHub/splicing_chx",'scripts','salmon_deseq2.R'))
-source(here::here("/Users/matteozanovello/Documents/GitHub/splicing_chx",'scripts','make_volcano_plot.R'))
+source(here::here('scripts','salmon_deseq2.R'))
+source(here::here('scripts','make_volcano_plot.R'))
 
-source(here::here("/Users/matteozanovello/Documents/GitHub/splicing_chx",'scripts','splicing_volcanoplot.R'))
-source(here::here("/Users/matteozanovello/Documents/GitHub/splicing_chx",'scripts','trial_nmd_plots.R'))
+source(here::here('scripts','splicing_volcanoplot.R'))
+source(here::here('scripts','trial_nmd_plots.R'))
 
 #source(here::here("/Users/matteozanovello/Documents/GitHub/splicing_chx",'scripts','GO_analysis_CM.R'))
 source(here::here('scripts','ggtranscript.R'))
@@ -27,6 +27,7 @@ source(here::here('scripts','ggtranscript.R'))
 #source(here::here("/Users/matteozanovello/Documents/GitHub/splicing_chx",'scripts','run_de_irfinder.R'))
 ```
 
+deseq2 on salmon quant + DE volcano plots
 ```{r}
 ### path to metadata (for salmon and pca)
 metadata_dir = fread("data/metadata_chx.csv")
@@ -51,7 +52,8 @@ for (i in c("cont","cyhx")) {
 
 bbb <- label_significant(results_table_cont, log2FoldCut = 2, log10padj = 100)
 ccc <- label_significant(results_table_cyhx, log2FoldCut = 2, log10padj = 100)
-list_int <- reactome_list#c("TARDBP", "STMN2", "UNC13A", "UNC13B") #,
+list_int <- #reactome_list#
+  c("TARDBP", "STMN2", "UNC13A", "UNC13B") #,
               #"PFKP", "AGRN", "RAP1GAP", 
               #"CAMK2B", "ELAVL3", "RANBP1", "NUP188", "CELF5", 
               #"INSR", 
@@ -75,10 +77,9 @@ normed_counts_chx_long <- normed_counts_chx_all[,c(2:17,19)] %>%
   mutate(group = gsub("_[^_]+$", "", name))
 ```
 
-data distribution
+data distribution and pca
 ```{r}
 ### gene expression - data distribution and pca analysis
-
 
 #density plot
 normed_counts_chx_long %>%
@@ -153,20 +154,6 @@ biplot(pp,
       legendPosition = 'top',
       colkey = c('black', 'red3'))
 
-pairsplot(pp,
-    components = getComponents(pp, pp$metadata[,c(4:5)]),
-    triangle = TRUE, trianglelabSize = 12,
-    hline = 0, vline = 0,
-    pointSize = 0.4,
-    gridlines.major = FALSE, gridlines.minor = FALSE,
-    colby = 'Grade',
-    title = 'Pairs plot', plotaxes = FALSE,
-    margingaps = unit(c(-0.01, -0.01, -0.01, -0.01), 'cm'))
-#dev.off()
-
-library(ggfortify)
-ggplot2::autoplot(PCAtools::biplot(pca), label = FALSE)
-
 ```
 
 splicing
@@ -209,13 +196,13 @@ plot(yyy)
 big_delta_chx %>%
   dplyr::filter(.id == "ControlControl-ControlTDP43KD" & mean_dpsi_per_lsv_junction > 0.1 & base_mean_psi < 0.05 & probability_changing > 0.9) %>% 
   distinct(gene_name) %>%
-  pull()
+  pull() #194 genes
 
 ###count splicing junctions and genes
-#big_delta_chx %>%
-#  dplyr::filter(.id == "CycloheximideControl-CycloheximideTDP43KD" & mean_dpsi_per_lsv_junction > 0.1 & base_mean_psi < 0.05 & probability_changing > 0.9) %>% 
-#  distinct(gene_name) %>%
-#  pull(gene_name)
+big_delta_chx %>%
+  dplyr::filter(.id == "CycloheximideControl-CycloheximideTDP43KD" & mean_dpsi_per_lsv_junction > 0.1 & base_mean_psi < 0.05 & probability_changing > 0.9) %>% 
+  distinct(gene_name) %>%
+  pull(gene_name) #253 genes
 
 ##single psi tables
 input_list <- c("Control_Control",
@@ -230,21 +217,24 @@ for (i in input_list) {
 big_data_chx <- rbindlist(datalist, idcol = TRUE)
 big_data_chx$.id <- factor(big_data_chx$.id, levels = input_list)
 
+
+write.table(big_data_chx, "~/Desktop/ds_chx.csv", sep = ",", row.names = F)
 #slope plot
-gene_list_slope <- c("STMN2", "UNC13A", "AARS1", 
-"SYNE1", "CYFIP2")
-big_data_chx_slope <- big_data_chx %>% filter(paste_into_igv_junction != "chr19:17618962-17620693")
-a <- slope_plot_nmd(big_data_chx_slope, 
+gene_list_slope <- c("STMN2", "UNC13A", "AARS1", "HDGFL2", "CYFIP2", "SYNE1")
+#"SYNE1", "CYFIP2")
+#big_data_chx_slope <- big_data_chx %>% filter(paste_into_igv_junction != "chr19:17618962-17620693")
+gene_list <- gene_list_slope
+a <- slope_plot_nmd(big_data_chx, 
                gene_list_slope)
 plot(a)
-ggsave(filename = "~/Desktop/slope_dark.png",a, width = 7, height = 5.57)
+#ggsave(filename = "~/Desktop/slope_dark.png",a, width = 7, height = 5.57)
 
 ```
 
 #go analysis
 ```{r}
 #create input for GO - DE (do it also on DS)
-carmm <- results_table_cyhx
+carmm <- results_table_cont
 cm_PR_up <- carmm %>% dplyr::filter(log2FoldChange > 0 & padj < 0.05) 
 cm_PR_up <- cm_PR_up[order(-cm_PR_up$log2FoldChange),]
 cm_PR_down <- carmm %>% dplyr::filter(log2FoldChange < 0 & padj < 0.05)
@@ -257,7 +247,7 @@ go_cm_PR <- gprofiler2::gost(query = list(Upregulated = cm_PR_up$symbol,
                              ordered_query = T, evcodes = TRUE)
 
 go_cm_PR$result %>%
-  dplyr::filter(-log10(p_value) > 40) %>%
+  dplyr::filter(-log10(p_value) > 20) %>%
   arrange(source, desc(query), desc(p_value)) %>%
   mutate(term_code = paste0(term_name, " (", term_id, ")")) %>%
   mutate(term_code=factor(term_code, levels=unique(term_code))) %>%
@@ -318,42 +308,9 @@ go_cm_DS$result %>%
   theme(legend.text=element_text(size=4))
 
 ###term overlap splicing and expression
-
-
-###venn diagram - compare TDP/CTRL in ctrl vs chx - also compare DE with DS
-up_PR_only <- carmm %>% dplyr::filter(FC_PR_WT > 1 & p_value_PR_WT < 0.05 &
-                                        (FC_GR_WT < 1 | p_value_GR_WT > 0.05)) 
-up_GR_only <- carmm %>% dplyr::filter(FC_GR_WT > 1 & p_value_GR_WT < 0.05 &
-                                        (FC_PR_WT < 1 | p_value_PR_WT > 0.05)) 
-down_PR_only <- carmm %>% dplyr::filter(FC_PR_WT < 1 & p_value_PR_WT < 0.05 &
-                                          (FC_GR_WT > 1 | p_value_GR_WT > 0.05))
-down_GR_only <- carmm %>% dplyr::filter(FC_GR_WT < 1 & p_value_GR_WT < 0.05 &
-                                          (FC_PR_WT > 1 | p_value_PR_WT > 0.05))
-#PR_down 509 - all_down 250 - PR_only 258
-#GR_down 474 - all_down 250 - GR_only 223
-#PR_up 329 - all_up 214 - PR_only 115
-#GR_up 309 - all_up 214 - GR_only 95
-
-mats_down <- c("(GR)400" = 223, "(PR)400" = 258, "(PR)400&(GR)400" = 250)
-
-fit_down <- euler(mats_down)
-#pdf("Venn_down.pdf", width = 3.5, height = 2, pointsize = 12)
-plot(fit_down, main = "Venn diagram showing downregulated genes in the two models",
-     quantities = list(type = c("counts")), labels = FALSE,
-     fills = c("#ffa040", "#55a0fb"))
-#dev.off()
-
-mats_up <- c("(GR)400" = 95, "(PR)400" = 115, "(PR)400&(GR)400" = 214)
-fit_up <- euler(mats_up)
-#pdf("Venn_up.pdf", width = 3.5, height = 2, pointsize = 12)
-plot(fit_up, main = "Venn diagram showing upregulated genes in the two models",
-     quantities = list(type = c("counts")), labels = FALSE,
-     fills = c("#ffa040", "#55a0fb"))
-#dev.off()
-
 ```
 
-#ggtranscript visualization
+#ggtranscript visualization - hold for now
 ```{r}
 postar_bedd <- fread("~/Desktop/rbp_bed/human_RBP_binding_sites_sorted.bed", 
                     col.names = c("seqnames", "start", "end", "dataset", "score", "strand", "QC"))
@@ -392,21 +349,11 @@ exons_regions = exonsBy(TxDb.Hsapiens.UCSC.hg38.knownGene, "tx",use.names = TRUE
 exons_regions = unlist(exons_regions)
 exons_regions$transcript_id = gsub("\\..*", "", names(exons_regions))
 
-#file_path = "data/sj_tabs/normalized_annotated/"
-#suffix = "_normalized_annotated.csv"
-#psi_files = list.files(file_path,
-#                       pattern = suffix,
-#                       full.names = TRUE)
-#psi_list_full = purrr::map(psi_files,my_clean_reader)
-#samp_ids = base::tolower(purrr::simplify(purrr::map(psi_files, basename)))
-#samp_ids = gsub(suffix,"",samp_ids)
-##add on the name as an additional column
-#psi_list_full = purrr::map2(psi_list_full, samp_ids, ~cbind(.x, SampleID = .y))
-#psi_list_full = purrr::map(psi_list_full,my_name_fixer)
-#psi_list_full = data.table::rbindlist(psi_list_full)
+source(here::here('scripts','ggtranscript.R'))
 
-gene_list <- c("CYFIP2", "SYNE1")
-#gene_target <- "CYFIP2"
+panel31 <- read.csv("~/Downloads/CEs_label_Ver_3.1.csv")
+gene_list <- panel31$gene
+#gene_list <- c("CYFIP2", "SYNE1") ##to be run on chx
 for (i in gene_list) {
  transcript_bind_plot(i)
   }

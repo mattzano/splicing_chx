@@ -52,10 +52,11 @@ list_int <- c("TARDBP", "STMN2", "UNC13A", "UNC13B", "UPF1",
               )
 bbb <- add_name_to_plot(results_table_UPF1_ctrl, list_int)
 ccc <- add_name_to_plot(results_table_UPF1_UPF1KD, list_int)
-plot(bbb)
-plot(ccc)
-ggsave(filename = "results/upgrade/de_upf1_cont.png", bbb, height = 5)
-ggsave(filename = "results/upgrade/de_upf1_kd.png", ccc, height = 5)
+#plot(bbb)
+#plot(ccc)
+#ggsave(filename = "results/upgrade/de_upf1_cont.png", bbb, height = 5)
+#ggsave(filename = "results/upgrade/de_upf1_kd.png", ccc, height = 5)
+
 #write.csv(results_table_UPF1_ctrl, "results/results_deseq_ctrlctrl_ctrlTDP43.csv", row.names = F)
 #write.csv(results_table_UPF1_UPF1KD, "results/results_deseq_UPF1ctrl_UPF1TDP43.csv", row.names = F)
 
@@ -130,7 +131,7 @@ PCAtools::eigencorplot(p_upf1,components = getComponents(p_upf1),
 #nice pca plot - PC2/PC3?
 biplot(p_upf1,
        x = "PC1",
-       y = "PC3",
+       y = "PC2",
        colby = 'group')
 ```
 
@@ -192,8 +193,9 @@ for (i in input_list_upf1) {
 big_data_upf1 <- rbindlist(datalist, idcol = TRUE)
 big_data_upf1$.id <- factor(big_data_upf1$.id, levels = input_list_upf1)
 
+
 #slope plot
-gene_list <- c("STMN2", "UNC13A", "AARS1")
+gene_list <- c("STMN2", "UNC13A", "AARS1", "KIF21A")
 a_upf1 <- slope_plot_nmd(big_data_upf1, gene_list) ###generalise input_list!!
 plot(a_upf1)
 ```
@@ -273,116 +275,4 @@ go_cm_DS$result %>%
   theme(plot.title = element_text(hjust = 0, size = 8)) +
   theme(legend.text=element_text(size=4))
 
-###term overlap splicing and expression
-
-
-###venn diagram - compare TDP/CTRL in ctrl vs chx - also compare DE with DS
-up_PR_only <- carmm %>% dplyr::filter(FC_PR_WT > 1 & p_value_PR_WT < 0.05 &
-                                        (FC_GR_WT < 1 | p_value_GR_WT > 0.05)) 
-up_GR_only <- carmm %>% dplyr::filter(FC_GR_WT > 1 & p_value_GR_WT < 0.05 &
-                                        (FC_PR_WT < 1 | p_value_PR_WT > 0.05)) 
-down_PR_only <- carmm %>% dplyr::filter(FC_PR_WT < 1 & p_value_PR_WT < 0.05 &
-                                          (FC_GR_WT > 1 | p_value_GR_WT > 0.05))
-down_GR_only <- carmm %>% dplyr::filter(FC_GR_WT < 1 & p_value_GR_WT < 0.05 &
-                                          (FC_PR_WT > 1 | p_value_PR_WT > 0.05))
-#PR_down 509 - all_down 250 - PR_only 258
-#GR_down 474 - all_down 250 - GR_only 223
-#PR_up 329 - all_up 214 - PR_only 115
-#GR_up 309 - all_up 214 - GR_only 95
-
-mats_down <- c("(GR)400" = 223, "(PR)400" = 258, "(PR)400&(GR)400" = 250)
-
-fit_down <- euler(mats_down)
-#pdf("Venn_down.pdf", width = 3.5, height = 2, pointsize = 12)
-plot(fit_down, main = "Venn diagram showing downregulated genes in the two models",
-     quantities = list(type = c("counts")), labels = FALSE,
-     fills = c("#ffa040", "#55a0fb"))
-#dev.off()
-
-mats_up <- c("(GR)400" = 95, "(PR)400" = 115, "(PR)400&(GR)400" = 214)
-fit_up <- euler(mats_up)
-#pdf("Venn_up.pdf", width = 3.5, height = 2, pointsize = 12)
-plot(fit_up, main = "Venn diagram showing upregulated genes in the two models",
-     quantities = list(type = c("counts")), labels = FALSE,
-     fills = c("#ffa040", "#55a0fb"))
-#dev.off()
-
-```
-
-#ggtranscript visualization
-```{r}
-postar_bedd <- fread("~/Desktop/rbp_bed/human_RBP_binding_sites_sorted.bed", 
-                    col.names = c("seqnames", "start", "end", "dataset", "score", "strand", "QC"))
-
-#sy5y_tdp_bed_1 <- fread("~/Desktop/rbp_bed/tardbp-shsy5y-1-20210701-mh_mapped_to_genome_single_peaks.bed", 
-#                      col.names = c("seqnames", "start", "end", "dataset", "score", "strand"))
-#sy5y_tdp_bed_1 <- sy5y_tdp_bed_1 %>%
-#  mutate(QC = "-") %>%
-#  mutate(dataset = "zSy5yTDP")
-
-#sy5y_tdp_bed_2 <- fread("~/Desktop/rbp_bed/tardbp-shsy5y-2-20210701-mh_mapped_to_genome_single_peaks.bed", 
-#                        col.names = c("seqnames", "start", "end", "dataset", "score", "strand"))
-#sy5y_tdp_bed_2 <- sy5y_tdp_bed_2 %>%
-#  mutate(QC = "-") %>%
-#  mutate(dataset = "zSy5yTDP")
-
-#postar_bed <- rbind(postar_bedd, sy5y_tdp_bed_1, sy5y_tdp_bed_2)
-postar_bed <- postar_bedd
-
-ensembl <- biomaRt::useEnsembl(biomart = "genes", dataset = "hsapiens_gene_ensembl")
-humandb <- biomaRt::getBM(attributes = c("external_gene_name", 
-                                         "ensembl_gene_id", "ensembl_transcript_id", "transcript_appris", 
-                                         "uniprotswissprot", "uniprotsptrembl", "uniprot_isoform"), 
-                          mart = ensembl)
-princ <- humandb[which(humandb$transcript_appris == "principal1" |
-                       humandb$transcript_appris == "principal2" | 
-                       humandb$transcript_appris == "principal3" | 
-                       humandb$transcript_appris == "principal4" |
-                       humandb$transcript_appris == "principal5"), ]
-
-cds_regions = cdsBy(TxDb.Hsapiens.UCSC.hg38.knownGene, "tx",use.names = TRUE)
-cds_regions = unlist(cds_regions)
-cds_regions$transcript_id = gsub("\\..*", "", names(cds_regions))
-
-exons_regions = exonsBy(TxDb.Hsapiens.UCSC.hg38.knownGene, "tx",use.names = TRUE)
-exons_regions = unlist(exons_regions)
-exons_regions$transcript_id = gsub("\\..*", "", names(exons_regions))
-
-#file_path = "data/sj_tabs/normalized_annotated/"
-#suffix = "_normalized_annotated.csv"
-#psi_files = list.files(file_path,
-#                       pattern = suffix,
-#                       full.names = TRUE)
-#psi_list_full = purrr::map(psi_files,my_clean_reader)
-#samp_ids = base::tolower(purrr::simplify(purrr::map(psi_files, basename)))
-#samp_ids = gsub(suffix,"",samp_ids)
-##add on the name as an additional column
-#psi_list_full = purrr::map2(psi_list_full, samp_ids, ~cbind(.x, SampleID = .y))
-#psi_list_full = purrr::map(psi_list_full,my_name_fixer)
-#psi_list_full = data.table::rbindlist(psi_list_full)
-
-gene_list <- c("NTRK2", "UNC13A", "STMN2")
-source(here::here('scripts','ggtranscript.R'))
-for (i in gene_list) {
- transcript_bind_plot(i)
-  }
-```
-
-IRFinder
-```{r}
-ir_top_level = "data/irfinder/"
-experiment = make_deframe_irfinder(ir_top_level,base_grep = "CTRL",
-                                   contrast_grep = "DOX")$metadata
-paths = make_deframe_irfinder(ir_top_level,base_grep = "CTRL",
-                                   contrast_grep = "DOX")$path
-
-#for (j in c("0.0125", "0.0187", "0.021", "0.025", "0.075")) {
-    experiment <- dplyr::filter(experiment, grepl("ctrl", SampleNames))
-    paths <- paths[grepl("ctrl", paths)]
-#}
-
-dds = run_deseq_ir(paths,experiment = experiment)
-result = return_formated_results(dds)
-resultCTRL <- result %>% 
-    mutate(ir_change = TDPKD -  control)
 ```

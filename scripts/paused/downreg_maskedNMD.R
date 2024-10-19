@@ -73,3 +73,4 @@ count_table <- function(featureCounts) {
     group_by(gene_name, .id) %>%
     summarise(avg_count = max(avg_count))
   avg_read_counts$.id <- factor(avg_read_counts$.id, levels = input_list)
+}
