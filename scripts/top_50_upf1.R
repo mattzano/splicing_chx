@@ -103,6 +103,8 @@ sample_dir = "~/Documents/GitHub/splicing_chx/data/salmon_upf1/"
   
 write.table(results_table_upf1vsctrl, "~/Desktop/results_table_upf1_vs_ctrl.csv",
             sep = ",", quote = F, row.names = F)
+write.table(results_table_UPF1_ctrl, "~/Desktop/results_table_UPF1_ctrl.csv",
+            sep = ",", quote = F, row.names = F)
 
 results_table_upf1vsctrl_filtered <- results_table_upf1vsctrl %>%
   filter(log2FoldChange > 1 | log2FoldChange < -1) %>%
@@ -207,7 +209,7 @@ my_colour = list(
 #mat_breaks <- seq(min(big_data_combo_matrix), max(big_data_combo_matrix), length.out = 10)
 
 pheatmap::pheatmap(big_data_combo_matrix, 
-                   color = colorRampPalette(rev(brewer.pal(n = 9, name = "Spectral")))(100),
+                   color = colorRampPalette(rev(RColorBrewer::brewer.pal(n = 9, name = "Spectral")))(100),
                    annotation_colors = my_colour,
                    show_rownames = F,
                    #color = inferno(8),
